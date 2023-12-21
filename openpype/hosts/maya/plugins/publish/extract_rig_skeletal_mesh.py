@@ -9,16 +9,7 @@ import pyblish.api
 
 from openpype.pipeline import publish
 from openpype.hosts.maya.api import fbx
-
-
-@contextmanager
-def renamed(original_name, renamed_name):
-    # type: (str, str) -> None
-    try:
-        cmds.rename(original_name, renamed_name)
-        yield
-    finally:
-        cmds.rename(renamed_name, original_name)
+from openpype.hosts.maya.api.lib import maintained_selection
 
 
 class ExtractUnrealSkeletalMeshFbx(publish.Extractor):
@@ -26,7 +17,8 @@ class ExtractUnrealSkeletalMeshFbx(publish.Extractor):
 
     order = pyblish.api.ExtractorOrder - 0.1
     label = "Extract Unreal Skeletal Mesh - FBX"
-    families = ["skeletalMesh"]
+    hosts = ["maya"]
+    families = ["rirg"]
     optional = True
 
     def process(self, instance):
@@ -36,9 +28,15 @@ class ExtractUnrealSkeletalMeshFbx(publish.Extractor):
         staging_dir = self.staging_dir(instance)
         filename = "{0}.fbx".format(instance.name)
         path = os.path.join(staging_dir, filename)
+        import pdb
+        pdb.set_trace()
+        set_members =  instance.data.get("setMembers",[])
+        geo = [s for s in set_members if s.endswith("out_SET")]
+        joints = [s for s in set_members if s.endswith("joints_SET")]
+        if not len(joints) == 1 or not len(geo) == 1:
+            self.log.info('No "joints_SET" or "out_SET detected')
+            return
 
-        geo = instance.data.get("geometry")
-        joints = instance.data.get("joints")
 
         to_extract = geo + joints
 
@@ -59,7 +57,9 @@ class ExtractUnrealSkeletalMeshFbx(publish.Extractor):
         # scene.
 
         # we rely on hierarchy under one root.
+        '''
         original_parent = to_extract[0].split("|")[1]
+
         parent_node = instance.data.get("asset")
 
         renamed_to_extract = []
@@ -67,10 +67,14 @@ class ExtractUnrealSkeletalMeshFbx(publish.Extractor):
             node_path = node.split("|")
             node_path[1] = parent_node
             renamed_to_extract.append("|".join(node_path))
+        '''
 
-        with renamed(original_parent, parent_node):
-            self.log.info("Extracting: {}".format(renamed_to_extract, path))
-            fbx_exporter.export(renamed_to_extract, path)
+        fbx_exporter.set_options_from_instance(instance)
+
+        # Export
+        with maintained_selection():
+            cmds.select(to_extract, r=1, noExpand=True)
+            fbx_exporter.export(to_extract, path)
 
         if "representations" not in instance.data:
             instance.data["representations"] = []
@@ -84,3 +88,18 @@ class ExtractUnrealSkeletalMeshFbx(publish.Extractor):
         instance.data["representations"].append(representation)
 
         self.log.info("Extract FBX successful to: {0}".format(path))
+
+
+class ExtractUnrealSkeletalMeshFbxRig(ExtractUnrealSkeletalMeshFbx):
+    """Extract Unreal Skeletal Mesh as FBX from Maya. """
+
+    order = pyblish.api.ExtractorOrder - 0.1
+    label = "Extract Unreal Skeletal Mesh - FBX"
+    hosts = ["maya"]
+    families = ["rirg"]
+    optional = True
+
+    def process(self, instance):
+        import pdb;pdb.set_trace()
+
+        super().process(instance)

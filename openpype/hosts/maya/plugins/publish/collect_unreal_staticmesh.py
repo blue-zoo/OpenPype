@@ -19,7 +19,7 @@ class CollectUnrealStaticMesh(pyblish.api.InstancePlugin):
         instance.data["geometryMembers"] = cmds.sets(
             geometry_set, query=True)
 
-        self.log.debug("geometry: {}".format(
+        self.log.info("geometry: {}".format(
             pformat(instance.data.get("geometryMembers"))))
 
         collision_set = [
@@ -29,7 +29,7 @@ class CollectUnrealStaticMesh(pyblish.api.InstancePlugin):
         instance.data["collisionMembers"] = cmds.sets(
             collision_set, query=True)
 
-        self.log.debug("collisions: {}".format(
+        self.log.info("collisions: {}".format(
             pformat(instance.data.get("collisionMembers"))))
 
         frame = cmds.currentTime(query=True)

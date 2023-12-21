@@ -23,6 +23,13 @@ class CreateCamera(plugin.MayaCreator):
                     tooltip="Bake to World-Space",
                     default=True),
         ])
+        defs.extend([
+            BoolDef("shiftSequenceAmimation",
+                    label="Shift Animation from Sequence",
+                    tooltip="Shifts the animation from the linked camera Sequencer",
+                    default=False),
+        ])
+
 
         return defs
 

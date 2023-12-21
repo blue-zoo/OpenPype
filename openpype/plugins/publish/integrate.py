@@ -830,6 +830,11 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
         if repre.get("colorspaceData"):
             data["colorspaceData"] = repre["colorspaceData"]
 
+
+        # NOTE: Added to export namespace
+        if repre.get("namespace"):
+            repre_context["namespace"] = repre.get("namespace")
+
         repre_doc = new_representation_doc(
             repre["name"], version["_id"], repre_context, data, repre_id
         )

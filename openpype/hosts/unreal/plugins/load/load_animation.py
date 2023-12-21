@@ -2,6 +2,7 @@
 """Load FBX with animations."""
 import os
 import json
+import glob
 
 import unreal
 from unreal import EditorAssetLibrary
@@ -42,11 +43,12 @@ class AnimationFBXLoader(plugin.Loader):
             for a in actors:
                 if a.get_class().get_name() != "SkeletalMeshActor":
                     continue
+
                 if a.get_actor_label() == instance_name:
                     actor = a
                     break
             if not actor:
-                raise Exception(f"Could not find actor {instance_name}")
+                raise Exception(f'Could not find actor "{instance_name}" in Level ')
             skeleton = actor.skeletal_mesh_component.skeletal_mesh.skeleton
             task.options.set_editor_property('skeleton', skeleton)
 
@@ -91,6 +93,9 @@ class AnimationFBXLoader(plugin.Loader):
             'remove_redundant_keys', False)
         task.options.anim_sequence_import_data.set_editor_property(
             'convert_scene', True)
+        task.options.anim_sequence_import_data.set_editor_property(
+            'set_material_drive_parameter_on_custom_attribute', True)
+
 
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
 
@@ -110,6 +115,9 @@ class AnimationFBXLoader(plugin.Loader):
 
         if animation:
             animation.set_editor_property('enable_root_motion', True)
+            animation.set_editor_property('force_root_lock', True)
+            animation.set_editor_property('root_motion_root_lock', unreal.RootMotionRootLock.REF_POSE)
+            animation.set_editor_property('additive_anim_type', unreal.AdditiveAnimationType.AAT_NONE)
             actor.skeletal_mesh_component.set_editor_property(
                 'animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
             actor.skeletal_mesh_component.animation_data.set_editor_property(
@@ -140,6 +148,7 @@ class AnimationFBXLoader(plugin.Loader):
             list(str): list of container content
         """
         # Create directory for asset and Ayon container
+
         hierarchy = context.get('asset').get('data').get('parents')
         root = "/Game/Ayon"
         asset = context.get('asset').get('name')
@@ -150,24 +159,24 @@ class AnimationFBXLoader(plugin.Loader):
             f"{root}/Animations/{asset}/{name}", suffix="")
 
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
-
         _filter = unreal.ARFilter(
             class_names=["World"],
-            package_paths=[f"{root}/{hierarchy[0]}"],
+            package_paths=[f"{root}/{hierarchy[0]}/{hierarchy[1]}"],
             recursive_paths=False)
         levels = ar.get_assets(_filter)
+
         master_level = levels[0].get_asset().get_path_name()
 
         hierarchy_dir = root
         for h in hierarchy:
             hierarchy_dir = f"{hierarchy_dir}/{h}"
         hierarchy_dir = f"{hierarchy_dir}/{asset}"
-
         _filter = unreal.ARFilter(
             class_names=["World"],
             package_paths=[f"{hierarchy_dir}/"],
             recursive_paths=True)
         levels = ar.get_assets(_filter)
+
         level = levels[0].get_asset().get_path_name()
 
         unreal.EditorLevelLibrary.save_all_dirty_levels()
@@ -175,16 +184,17 @@ class AnimationFBXLoader(plugin.Loader):
 
         container_name += suffix
 
+        # NOTE: Retrieve the namespace of the publish from the representation
+        import pprint
+        print(pprint.pformat(context))
+        instance_name = context.get('representation',{}).get('context',{}).get('namespace',None)
+        if instance_name == None:
+            raise AttributeError("Namespace not found in representation publish, unable to determine which actor to apply animation")
+        # Remove colon
+        instance_name = instance_name.replace(":","")
+
         EditorAssetLibrary.make_directory(asset_dir)
-
         path = self.filepath_from_context(context)
-        libpath = path.replace(".fbx", ".json")
-
-        with open(libpath, "r") as fp:
-            data = json.load(fp)
-
-        instance_name = data.get("instance_name")
-
         animation = self._process(path, asset_dir, asset_name, instance_name)
 
         asset_content = EditorAssetLibrary.list_assets(
@@ -200,17 +210,29 @@ class AnimationFBXLoader(plugin.Loader):
 
         for s in sequences:
             sequence = ar.get_asset_by_object_path(s).get_asset()
+
             possessables = [
                 p for p in sequence.get_possessables()
                 if p.get_display_name() == instance_name]
+
+            if possessables == []:
+                raise AttributeError('No Actor with Label "{ns}" found in Level, Ensure Actor exists before applying animation'.format(ns=instance_name))
+
 
             for p in possessables:
                 tracks = [
                     t for t in p.get_tracks()
                     if (t.get_class() ==
                         MovieSceneSkeletalAnimationTrack.static_class())]
+                if not tracks:
+                    print(" No animation track on {p}".format(
+                        p=p.get_display_name()
+                        ))
+                    tracks = [p.add_track(MovieSceneSkeletalAnimationTrack.static_class())]
 
                 for t in tracks:
+                    bob = t.add_section()
+
                     sections = [
                         s for s in t.get_sections()
                         if (s.get_class() ==
@@ -218,30 +240,49 @@ class AnimationFBXLoader(plugin.Loader):
 
                     for s in sections:
                         s.params.set_editor_property('animation', animation)
+                        startFrame = context.get("version").get("data").get("frameStart")
+                        endFrame = context.get("version").get("data").get("frameEnd")
 
-        # Create Asset Container
-        unreal_pipeline.create_container(
-            container=container_name, path=asset_dir)
+                        s.set_range(startFrame,endFrame)
 
-        data = {
-            "schema": "ayon:container-2.0",
-            "id": AYON_CONTAINER_ID,
-            "asset": asset,
-            "namespace": asset_dir,
-            "container_name": container_name,
-            "asset_name": asset_name,
-            "loader": str(self.__class__.__name__),
-            "representation": context["representation"]["_id"],
-            "parent": context["representation"]["parent"],
-            "family": context["representation"]["context"]["family"]
-        }
-        unreal_pipeline.imprint(f"{asset_dir}/{container_name}", data)
 
-        imported_content = EditorAssetLibrary.list_assets(
-            asset_dir, recursive=True, include_folder=False)
 
-        for a in imported_content:
-            EditorAssetLibrary.save_asset(a)
+
+
+        existing_assets = EditorAssetLibrary.list_assets(
+                    asset_dir, recursive=False, include_folder=False)
+        asset_container = None
+        # Get all the asset containers
+        for a in existing_assets:
+            obj = ar.get_asset_by_object_path(a)
+            _a = obj.get_asset()
+            if _a.get_name() == container_name and _a.get_class().get_name() == "AyonAssetContainer":
+                asset_container = _a
+
+        if not asset_container:
+            # Create Asset Container
+            unreal_pipeline.create_container(
+                container=container_name, path=asset_dir)
+
+            data = {
+                "schema": "ayon:container-2.0",
+                "id": AYON_CONTAINER_ID,
+                "asset": asset,
+                "namespace": asset_dir,
+                "container_name": container_name,
+                "asset_name": asset_name,
+                "loader": str(self.__class__.__name__),
+                "representation": context["representation"]["_id"],
+                "parent": context["representation"]["parent"],
+                "family": context["representation"]["context"]["family"]
+            }
+            unreal_pipeline.imprint(f"{asset_dir}/{container_name}", data)
+
+            imported_content = EditorAssetLibrary.list_assets(
+                asset_dir, recursive=True, include_folder=False)
+
+            for a in imported_content:
+                EditorAssetLibrary.save_asset(a)
 
         unreal.EditorLevelLibrary.save_current_level()
         unreal.EditorLevelLibrary.load_level(master_level)
@@ -290,8 +331,8 @@ class AnimationFBXLoader(plugin.Loader):
             'import_bone_tracks', True)
         task.options.anim_sequence_import_data.set_editor_property(
             'remove_redundant_keys', False)
-        task.options.anim_sequence_import_data.set_editor_property(
-            'convert_scene', True)
+        #task.options.anim_sequence_import_data.set_editor_property(
+        #    'convert_scene', True)
 
         skeletal_mesh = EditorAssetLibrary.load_asset(
             container.get('namespace') + "/" + container.get('asset_name'))

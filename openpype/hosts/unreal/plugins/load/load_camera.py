@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """Load camera from FBX."""
 from pathlib import Path
-
+import importlib
 import unreal
 from unreal import (
     EditorAssetLibrary,
+    LevelEditorSubsystem,
     EditorLevelLibrary,
+    MovieSceneSequenceExtensions,
     EditorLevelUtils,
     LevelSequenceEditorBlueprintLibrary as LevelSequenceLib,
 )
@@ -15,6 +17,8 @@ from openpype.pipeline import (
     get_current_project_name,
 )
 from openpype.hosts.unreal.api import plugin
+from openpype.hosts.unreal.api import pipeline
+importlib.reload(pipeline)
 from openpype.hosts.unreal.api.pipeline import (
     generate_sequence,
     set_sequence_hierarchy,
@@ -48,13 +52,23 @@ class CameraLoader(plugin.Loader):
                 import_filename
             )
         elif (ue_major == 4 and ue_minor >= 27) or ue_major == 5:
-            unreal.SequencerTools.import_level_sequence_fbx(
+
+            bob = unreal.SequencerTools.import_level_sequence_fbx(
                 world,
                 sequence,
                 bindings,
                 import_fbx_settings,
                 import_filename
             )
+
+            tracks = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)
+            sections = tracks[0].get_sections()
+
+
+            for section in sections:
+                return section.get_camera_binding_id()
+
+
         else:
             raise NotImplementedError(
                 f"Unreal version {ue_major} not supported")
@@ -95,168 +109,173 @@ class CameraLoader(plugin.Loader):
         asset_name = f"{asset}_{name}" if asset else f"{name}"
 
         tools = unreal.AssetToolsHelpers().get_asset_tools()
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
 
-        # Create a unique name for the camera directory
-        unique_number = 1
-        if EditorAssetLibrary.does_directory_exist(f"{hierarchy_dir}/{asset}"):
-            asset_content = EditorAssetLibrary.list_assets(
-                f"{root}/{asset}", recursive=False, include_folder=True
-            )
+        # Find the existing sequences
+        asset_content = EditorAssetLibrary.list_assets(
+            f"{hierarchy_dir}/{asset}", recursive=False, include_folder=True
+        )
 
-            # Get highest number to make a unique name
-            folders = [a for a in asset_content
-                       if a[-1] == "/" and f"{name}_" in a]
-            # Get number from folder name. Splits the string by "_" and
-            # removes the last element (which is a "/").
-            f_numbers = [int(f.split("_")[-1][:-1]) for f in folders]
-            f_numbers.sort()
-            unique_number = f_numbers[-1] + 1 if f_numbers else 1
 
-        asset_dir, container_name = tools.create_unique_asset_name(
-            f"{hierarchy_dir}/{asset}/{name}_{unique_number:02d}", suffix="")
+        clipIn = context.get('asset').get("data").get("clipIn")
+        clipOut = context.get('asset').get("data").get("clipOut")
 
-        container_name += suffix
-
-        EditorAssetLibrary.make_directory(asset_dir)
+        container_name =context.get('subset').get("name")+suffix
 
         # Create map for the shot, and create hierarchy of map. If the maps
         # already exist, we will use them.
         h_dir = hierarchy_dir_list[0]
         h_asset = hierarchy[0]
-        master_level = f"{h_dir}/{h_asset}_map.{h_asset}_map"
-        if not EditorAssetLibrary.does_asset_exist(master_level):
-            EditorLevelLibrary.new_level(f"{h_dir}/{h_asset}_map")
 
-        level = f"{asset_dir}/{asset}_map_camera.{asset}_map_camera"
-        if not EditorAssetLibrary.does_asset_exist(level):
-            EditorLevelLibrary.new_level(f"{asset_dir}/{asset}_map_camera")
+        episodeLevelFolder = '{p}/{l}'.format(p=hierarchy_dir_list[1],l=hierarchy[1] )
 
-            EditorLevelLibrary.load_level(master_level)
-            EditorLevelUtils.add_level_to_world(
-                EditorLevelLibrary.get_editor_world(),
-                level,
-                unreal.LevelStreamingDynamic
-            )
-        EditorLevelLibrary.save_all_dirty_levels()
-        EditorLevelLibrary.load_level(level)
 
-        # Get all the sequences in the hierarchy. It will create them, if
-        # they don't exist.
-        frame_ranges = []
-        sequences = []
-        for (h_dir, h) in zip(hierarchy_dir_list, hierarchy):
-            root_content = EditorAssetLibrary.list_assets(
-                h_dir, recursive=False, include_folder=False)
+        episodeLevelContents = EditorAssetLibrary.list_assets(
+            episodeLevelFolder, recursive=True, include_folder=False)
+        episodeLevels = []
+        for s in episodeLevelContents:
+            _a = ar.get_asset_by_object_path(s)
+            if _a.get_class().get_name() == "LevelSequence":
 
-            existing_sequences = [
-                EditorAssetLibrary.find_asset_data(asset)
-                for asset in root_content
-                if EditorAssetLibrary.find_asset_data(
-                    asset).get_class().get_name() == 'LevelSequence'
-            ]
+                episodeLevelPath = '{p}/{n}_map.{n}_map'.format(
+                    p=str(_a.package_path),
+                    n =str(_a.asset_name)
+                )
+                if EditorAssetLibrary.does_asset_exist(episodeLevelPath):
+                    episodeLevel = ar.get_asset_by_object_path(episodeLevelPath)
+                    episodeLevels.append({
+                        'level':episodeLevel.get_asset(),
+                        'sequence':_a.get_asset()
 
-            if existing_sequences:
-                for seq in existing_sequences:
-                    sequences.append(seq.get_asset())
-                    frame_ranges.append((
-                        seq.get_asset().get_playback_start(),
-                        seq.get_asset().get_playback_end()))
-            else:
-                sequence, frame_range = generate_sequence(h, h_dir)
+                    })
 
-                sequences.append(sequence)
-                frame_ranges.append(frame_range)
+        #return
+        shotFolder = '{p}/{l}'.format(p=hierarchy_dir_list[1],l=hierarchy[1] )
 
-        EditorAssetLibrary.make_directory(asset_dir)
+        # Find the layout levels for the shot
+        shotLevels = []
+        shotLevelFolder = '{p}/{l}'.format(p=hierarchy_dir_list[-1],l=asset )
+        shot_content = EditorAssetLibrary.list_assets(
+            shotLevelFolder, recursive=True, include_folder=False)
 
-        cam_seq = tools.create_asset(
-            asset_name=f"{asset}_camera",
-            package_path=asset_dir,
-            asset_class=unreal.LevelSequence,
-            factory=unreal.LevelSequenceFactoryNew()
-        )
+        for s in shot_content:
+            _a = ar.get_asset_by_object_path(s)
+            if _a.get_class().get_name() == "LevelSequence":
 
-        # Add sequences data to hierarchy
-        for i in range(len(sequences) - 1):
-            set_sequence_hierarchy(
-                sequences[i], sequences[i + 1],
-                frame_ranges[i][1],
-                frame_ranges[i + 1][0], frame_ranges[i + 1][1],
-                [level])
+                shotLevelPath = '{p}/{n}_map.{n}_map'.format(
+                    p=str(_a.package_path),
+                    n =str(_a.asset_name)
+                )
+                if EditorAssetLibrary.does_asset_exist(shotLevelPath):
+                    shotLevel = ar.get_asset_by_object_path(shotLevelPath)
+                    shotLevels.append({
+                        'level':shotLevel.get_asset(),
+                        'sequence':_a.get_asset(),
+                        'shotLevelFolder':shotLevel.package_path
+                    })
 
-        project_name = get_current_project_name()
-        data = get_asset_by_name(project_name, asset)["data"]
-        cam_seq.set_display_rate(
-            unreal.FrameRate(data.get("fps"), 1.0))
-        cam_seq.set_playback_start(data.get('clipIn'))
-        cam_seq.set_playback_end(data.get('clipOut') + 1)
-        set_sequence_hierarchy(
-            sequences[-1], cam_seq,
-            frame_ranges[-1][1],
-            data.get('clipIn'), data.get('clipOut'),
-            [level])
 
-        settings = unreal.MovieSceneUserImportFBXSettings()
-        settings.set_editor_property('reduce_keys', False)
+        sequenceCameraBindingId = None
+        for shot in shotLevels:
+            frame_ranges = []
+            sequences = []
+            seq = shot['sequence']
+            level = shot['level']
+            shotLevelFolder = shot['shotLevelFolder']
 
-        if cam_seq:
+            # Look through the shots folder to find a container, raise error if present
+            asset_children = EditorAssetLibrary.list_assets(
+                shotLevelFolder, recursive=False, include_folder=False)
+            ar = unreal.AssetRegistryHelpers.get_asset_registry()
+            container = None
+            for a in asset_children:
+                obj = ar.get_asset_by_object_path(a)
+                _a = obj.get_asset()
+                if _a.get_name() == container_name and _a.get_class().get_name() == "AyonAssetContainer":
+                    container = _a
+                    raise AttributeError("Camera already imported, use updater to manage")
+
+
             path = self.filepath_from_context(context)
-            self._import_camera(
-                EditorLevelLibrary.get_editor_world(),
-                cam_seq,
-                cam_seq.get_bindings(),
+            settings = unreal.MovieSceneUserImportFBXSettings()
+            settings.set_editor_property('reduce_keys', False)
+
+            preImportObjects= unreal.SequencerTools().get_bound_objects(level, seq,
+                                                                seq.get_bindings(),
+                                                                seq.get_playback_range())
+
+            preImportCameras = [obj for bindings in preImportObjects for obj in bindings.bound_objects if obj.get_class().get_name() == "CineCameraActor"]
+
+            bindingId = self._import_camera(
+                level,
+                seq,
+                seq.get_bindings(),
                 settings,
-                path
-            )
+                path)
+            _id = bindingId.get_editor_property('guid')
+            binding = unreal.MovieSceneSequenceExtensions.find_binding_by_id(seq, _id )
 
-        # Set range of all sections
-        # Changing the range of the section is not enough. We need to change
-        # the frame of all the keys in the section.
-        for possessable in cam_seq.get_possessables():
-            for tracks in possessable.get_tracks():
-                for section in tracks.get_sections():
-                    section.set_range(
-                        data.get('clipIn'),
-                        data.get('clipOut') + 1)
-                    for channel in section.get_all_channels():
-                        for key in channel.get_keys():
-                            old_time = key.get_time().get_editor_property(
-                                'frame_number')
-                            old_time_value = old_time.get_editor_property(
-                                'value')
-                            new_time = old_time_value + (
-                                data.get('clipIn') - data.get('frameStart')
-                            )
-                            key.set_time(unreal.FrameNumber(value=new_time))
+            postImportObjects = unreal.SequencerTools().get_bound_objects(level, seq,
+                                                                seq.get_bindings(),
+                                                                seq.get_playback_range())
 
-        # Create Asset Container
-        create_container(
-            container=container_name, path=asset_dir)
+            postImportCameras = [obj for bindings in postImportObjects for obj in bindings.bound_objects if obj.get_class().get_name() == "CineCameraActor"]
 
-        data = {
-            "schema": "ayon:container-2.0",
-            "id": AYON_CONTAINER_ID,
-            "asset": asset,
-            "namespace": asset_dir,
-            "container_name": container_name,
-            "asset_name": asset_name,
-            "loader": str(self.__class__.__name__),
-            "representation": context["representation"]["_id"],
-            "parent": context["representation"]["parent"],
-            "family": context["representation"]["context"]["family"]
-        }
-        imprint(f"{asset_dir}/{container_name}", data)
+            newCameras = [camera for camera in postImportCameras if camera not in preImportCameras]
+            for camera in newCameras:
+                camera.tags = camera.tags + [context["representation"]["_id"]]
+
+            bindingName = binding.get_name()
+
+
+            asset_children = EditorAssetLibrary.list_assets(
+                shotLevelFolder, recursive=False, include_folder=False)
+            ar = unreal.AssetRegistryHelpers.get_asset_registry()
+            container = None
+
+
+
+            # Get all the asset containers
+            for a in asset_children:
+                obj = ar.get_asset_by_object_path(a)
+                _a = obj.get_asset()
+                if _a.get_name() == container_name and _a.get_class().get_name() == "AyonAssetContainer":
+                    container = _a
+
+
+            # Create Asset Container
+            if not container:
+
+                # Create Asset Container
+                create_container(
+                    container=container_name, path=shotLevelFolder)
+
+            data = {
+                "schema": "ayon:container-2.0",
+                "id": AYON_CONTAINER_ID,
+                "asset": asset,
+                "namespace": shotLevelFolder,
+                "container_name": container_name,
+                "asset_name": bindingName,
+                "loader": str(self.__class__.__name__),
+                "representation": context["representation"]["_id"],
+                "parent": context["representation"]["parent"],
+                "family": context["representation"]["context"]["family"]
+            }
+            imprint(f"{shotLevelFolder}/{container_name}", data)
+
+
+
+        for episodeLevel in episodeLevels:
+            sequence = episodeLevel['sequence']
+
+            track = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+            sections = track.get_sections()
+            section = track.add_section()
+            section.set_range(clipIn,clipOut)
+            section.set_end_frame(clipOut)
 
         EditorLevelLibrary.save_all_dirty_levels()
-        EditorLevelLibrary.load_level(master_level)
-
-        # Save all assets in the hierarchy
-        asset_content = EditorAssetLibrary.list_assets(
-            hierarchy_dir_list[0], recursive=True, include_folder=False
-        )
-
-        for a in asset_content:
-            EditorAssetLibrary.save_asset(a)
 
         return asset_content
 
@@ -271,6 +290,9 @@ class CameraLoader(plugin.Loader):
         vp_loc, vp_rot = editor_subsystem.get_level_viewport_camera_info()
 
         asset_dir = container.get('namespace')
+        previousRepresentationId = container.get('representation')
+
+
 
         EditorLevelLibrary.save_current_level()
 
@@ -279,160 +301,94 @@ class CameraLoader(plugin.Loader):
             package_paths=[asset_dir],
             recursive_paths=False)
         sequences = ar.get_assets(_filter)
+
         _filter = unreal.ARFilter(
             class_names=["World"],
             package_paths=[asset_dir],
             recursive_paths=True)
         maps = ar.get_assets(_filter)
 
-        # There should be only one map in the list
-        EditorLevelLibrary.load_level(maps[0].get_asset().get_path_name())
 
-        level_sequence = sequences[0].get_asset()
+        for _seq in sequences:
 
-        display_rate = level_sequence.get_display_rate()
-        playback_start = level_sequence.get_playback_start()
-        playback_end = level_sequence.get_playback_end()
+            seq = _seq.get_asset()
+            for _level in maps:
+                level = _level.get_asset()
 
-        sequence_name = f"{container.get('asset')}_camera"
+                # get the old representation camera
+                preImportObjects= unreal.SequencerTools().get_bound_objects(level, seq,
+                                                                    seq.get_bindings(),
+                                                                    seq.get_playback_range())
 
-        # Get the actors in the level sequence.
-        objs = unreal.SequencerTools.get_bound_objects(
-            unreal.EditorLevelLibrary.get_editor_world(),
-            level_sequence,
-            level_sequence.get_bindings(),
-            unreal.SequencerScriptingRange(
-                has_start_value=True,
-                has_end_value=True,
-                inclusive_start=level_sequence.get_playback_start(),
-                exclusive_end=level_sequence.get_playback_end()
-            )
-        )
+                preImportCameras = [obj for bindings in preImportObjects for obj in bindings.bound_objects if obj.get_class().get_name() == "CineCameraActor"]
 
-        # Delete actors from the map
-        for o in objs:
-            if o.bound_objects[0].get_class().get_name() == "CineCameraActor":
-                actor_path = o.bound_objects[0].get_path_name().split(":")[-1]
-                actor = EditorLevelLibrary.get_actor_reference(actor_path)
-                EditorLevelLibrary.destroy_actor(actor)
+                # Delete the old camera
+                for camera in preImportCameras:
 
-        # Remove the Level Sequence from the parent.
-        # We need to traverse the hierarchy from the master sequence to find
-        # the level sequence.
-        root = "/Game/Ayon"
-        namespace = container.get('namespace').replace(f"{root}/", "")
-        ms_asset = namespace.split('/')[0]
-        _filter = unreal.ARFilter(
-            class_names=["LevelSequence"],
-            package_paths=[f"{root}/{ms_asset}"],
-            recursive_paths=False)
-        sequences = ar.get_assets(_filter)
-        master_sequence = sequences[0].get_asset()
-        _filter = unreal.ARFilter(
-            class_names=["World"],
-            package_paths=[f"{root}/{ms_asset}"],
-            recursive_paths=False)
-        levels = ar.get_assets(_filter)
-        master_level = levels[0].get_asset().get_path_name()
+                    for bindings in preImportObjects:
+                        if not camera in bindings.bound_objects:
+                            continue
+                        else:
+                            tracks= bindings.binding_proxy.get_tracks()
+                            for track in tracks:
+                                bindings.binding_proxy.remove_track(track)
+                            bindings.binding_proxy.remove()
 
-        sequences = [master_sequence]
+                        if previousRepresentationId in camera.tags:
+                            unreal.EditorLevelLibrary.destroy_actor(camera)
 
-        parent = None
-        sub_scene = None
-        for s in sequences:
-            tracks = s.get_master_tracks()
-            subscene_track = None
-            for t in tracks:
-                if t.get_class() == unreal.MovieSceneSubTrack.static_class():
-                    subscene_track = t
-            if subscene_track:
-                sections = subscene_track.get_sections()
-                for ss in sections:
-                    if ss.get_sequence().get_name() == sequence_name:
-                        parent = s
-                        sub_scene = ss
-                        break
-                    sequences.append(ss.get_sequence())
-                for i, ss in enumerate(sections):
-                    ss.set_row_index(i)
-            if parent:
-                break
+                ## Remove Camera Cut
+                track = seq.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+                #binding.add_track(track)
+                sections = track.get_sections()
+                for section in sections:
+                    track.remove_section(section)
+                    #section.set_camera_binding_id( bindingId)
 
-            assert parent, "Could not find the parent sequence"
 
-        EditorAssetLibrary.delete_asset(level_sequence.get_path_name())
+                settings = unreal.MovieSceneUserImportFBXSettings()
+                settings.set_editor_property('reduce_keys', False)
+                bindingId = self._import_camera(
+                    level,
+                    seq,
+                    seq.get_bindings(),
+                    settings,
+                    str(representation["data"]["path"])
+                )
 
-        settings = unreal.MovieSceneUserImportFBXSettings()
-        settings.set_editor_property('reduce_keys', False)
+                postImportObjects = unreal.SequencerTools().get_bound_objects(level, seq,
+                                                                    seq.get_bindings(),
+                                                                    seq.get_playback_range())
 
-        tools = unreal.AssetToolsHelpers().get_asset_tools()
-        new_sequence = tools.create_asset(
-            asset_name=sequence_name,
-            package_path=asset_dir,
-            asset_class=unreal.LevelSequence,
-            factory=unreal.LevelSequenceFactoryNew()
-        )
+                postImportCameras = [obj for bindings in postImportObjects for obj in bindings.bound_objects if obj.get_class().get_name() == "CineCameraActor"]
 
-        new_sequence.set_display_rate(display_rate)
-        new_sequence.set_playback_start(playback_start)
-        new_sequence.set_playback_end(playback_end)
+                newCameras = [camera for camera in postImportCameras if camera not in preImportCameras]
+                for camera in newCameras:
+                    camera.tags = camera.tags + [str(representation["_id"])]
 
-        sub_scene.set_sequence(new_sequence)
 
-        self._import_camera(
-            EditorLevelLibrary.get_editor_world(),
-            new_sequence,
-            new_sequence.get_bindings(),
-            settings,
-            str(representation["data"]["path"])
-        )
+                _id = bindingId.get_editor_property('guid')
+                binding = unreal.MovieSceneSequenceExtensions.find_binding_by_id(seq, _id )
+                #bindingName = binding.get_name()
 
-        # Set range of all sections
-        # Changing the range of the section is not enough. We need to change
-        # the frame of all the keys in the section.
-        project_name = get_current_project_name()
-        asset = container.get('asset')
-        data = get_asset_by_name(project_name, asset)["data"]
 
-        for possessable in new_sequence.get_possessables():
-            for tracks in possessable.get_tracks():
-                for section in tracks.get_sections():
-                    section.set_range(
-                        data.get('clipIn'),
-                        data.get('clipOut') + 1)
-                    for channel in section.get_all_channels():
-                        for key in channel.get_keys():
-                            old_time = key.get_time().get_editor_property(
-                                'frame_number')
-                            old_time_value = old_time.get_editor_property(
-                                'value')
-                            new_time = old_time_value + (
-                                data.get('clipIn') - data.get('frameStart')
-                            )
-                            key.set_time(unreal.FrameNumber(value=new_time))
+                track = seq.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+                #binding.add_track(track)
+                sections = track.get_sections()
+                for section in sections:
+                    #section.set_camera_binding_id( bindingId)
+                    #section.set_range(clipIn,clipOut)
+                    pass
+
+
 
         data = {
             "representation": str(representation["_id"]),
             "parent": str(representation["parent"])
         }
         imprint(f"{asset_dir}/{container.get('container_name')}", data)
+        return
 
-        EditorLevelLibrary.save_current_level()
-
-        asset_content = EditorAssetLibrary.list_assets(
-            f"{root}/{ms_asset}", recursive=True, include_folder=False)
-
-        for a in asset_content:
-            EditorAssetLibrary.save_asset(a)
-
-        EditorLevelLibrary.load_level(master_level)
-
-        if curr_level_sequence:
-            LevelSequenceLib.open_level_sequence(curr_level_sequence)
-            LevelSequenceLib.set_current_time(curr_time)
-            LevelSequenceLib.set_lock_camera_cut_to_viewport(is_cam_lock)
-
-        editor_subsystem.set_level_viewport_camera_info(vp_loc, vp_rot)
 
     def remove(self, container):
         asset_dir = container.get('namespace')

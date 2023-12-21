@@ -1988,7 +1988,7 @@ class CreateContext:
         """
 
         creator = self._get_creator_in_create(creator_identifier)
-
+        print(creator)
         project_name = self.project_name
         if asset_doc is None:
             asset_name = self.get_current_asset_name()

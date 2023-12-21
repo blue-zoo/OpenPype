@@ -711,7 +711,7 @@
             "enabled": true
         },
         "CollectFbxCamera": {
-            "enabled": false
+            "enabled": true
         },
         "CollectGLTF": {
             "enabled": false

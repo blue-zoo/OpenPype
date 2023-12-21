@@ -34,7 +34,7 @@ class ExtractMayaSceneRaw(publish.Extractor):
             for family in self.families:
                 try:
                     self.scene_type = ext_mapping[family]
-                    self.log.debug(
+                    self.log.info(
                         "Using {} as scene type".format(self.scene_type))
                     break
                 except KeyError:
@@ -63,7 +63,7 @@ class ExtractMayaSceneRaw(publish.Extractor):
             selection += self._get_loaded_containers(members)
 
         # Perform extraction
-        self.log.debug("Performing extraction ...")
+        self.log.info("Performing extraction ...")
         with maintained_selection():
             cmds.select(selection, noExpand=True)
             cmds.file(path,
@@ -87,8 +87,7 @@ class ExtractMayaSceneRaw(publish.Extractor):
         }
         instance.data["representations"].append(representation)
 
-        self.log.debug("Extracted instance '%s' to: %s" % (instance.name,
-                                                           path))
+        self.log.info("Extracted instance '%s' to: %s" % (instance.name, path))
 
     @staticmethod
     def _get_loaded_containers(members):
@@ -104,6 +103,9 @@ class ExtractMayaSceneRaw(publish.Extractor):
         obj_sets = cmds.ls("*.id", long=True, type="objectSet", recursive=True,
                            objectsOnly=True)
 
+        print( obj_sets)
+        #import pdb;pdb.set_trace()
+
         loaded_containers = []
         for obj_set in obj_sets:
 
@@ -114,7 +116,7 @@ class ExtractMayaSceneRaw(publish.Extractor):
             if cmds.getAttr(id_attr) != AVALON_CONTAINER_ID:
                 continue
 
-            set_content = set(cmds.sets(obj_set, query=True))
+            set_content = set(cmds.sets(obj_set, query=True) or [])
             if set_content.intersection(members_with_refs):
                 loaded_containers.append(obj_set)
 

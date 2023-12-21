@@ -1240,6 +1240,8 @@ def _convert_global_project_settings(ayon_settings, output, default_settings):
 
         profile["outputs"] = new_outputs
 
+    #TODO: These do not exist on our server core addon currently...
+    '''
     # ExtractThumbnail plugin
     ayon_extract_thumbnail = ayon_publish["ExtractThumbnail"]
     # fix display and view at oiio defaults
@@ -1281,6 +1283,7 @@ def _convert_global_project_settings(ayon_settings, output, default_settings):
             new_outputs[name] = profile_output
         profile["outputs"] = new_outputs
 
+    '''
     # Extract Burnin plugin
     extract_burnin = ayon_publish["ExtractBurnin"]
     extract_burnin_options = extract_burnin["options"]

@@ -3,6 +3,8 @@
 import json
 import collections
 from pathlib import Path
+import inspect,os
+import importlib
 
 import unreal
 from unreal import (
@@ -28,6 +30,9 @@ from openpype.pipeline import (
 from openpype.pipeline.context_tools import get_current_project_asset
 from openpype.settings import get_current_project_settings
 from openpype.hosts.unreal.api import plugin
+
+from openpype.hosts.unreal.api import pipeline
+importlib.reload(pipeline)
 from openpype.hosts.unreal.api.pipeline import (
     generate_sequence,
     set_sequence_hierarchy,
@@ -40,7 +45,7 @@ from openpype.hosts.unreal.api.pipeline import (
 class LayoutLoader(plugin.Loader):
     """Load Layout from a JSON file"""
 
-    families = ["layout"]
+    families = ["layout","layout_multi"]
     representations = ["json"]
 
     label = "Load Layout"
@@ -73,6 +78,8 @@ class LayoutLoader(plugin.Loader):
             name = "StaticMeshFBXLoader"
         elif family == 'camera':
             name = "CameraLoader"
+        elif family == 'staticMesh':
+            name = "StaticMeshFBXLoaderAtom"
 
         if name == "":
             return None
@@ -86,23 +93,45 @@ class LayoutLoader(plugin.Loader):
     @staticmethod
     def _get_abc_loader(loaders, family):
         name = ""
+
         if family == 'rig':
             name = "SkeletalMeshAlembicLoader"
         elif family == 'model':
             name = "StaticMeshAlembicLoader"
-
-        if name == "":
+        elif family == 'placeholder':
+            name = "PlaceHolderAbcLoader"
+        else:
             return None
-
         for loader in loaders:
             if loader.__name__ == name:
                 return loader
 
         return None
 
-    def _transform_from_basis(self, transform, basis):
+    def _transform_from_basis(self, transform, basis, swap_axis = False):
         """Transform a transform from a basis to a new basis."""
         # Get the basis matrix
+        # change matrix exported from maya as xyz to
+        swap_axis=False
+        if swap_axis:
+            s = 2
+            t = 1
+        else:
+            s = 1
+            t = 2
+
+
+
+        basis[0] = [basis[0][0],basis[0][s],basis[0][t]]
+        basis[1] = [basis[1][0],basis[1][s],basis[1][t]]
+        basis[2] = [basis[2][0],basis[2][s],basis[2][t]]
+        basis[3] = [basis[3][0],basis[3][s],basis[3][t]]
+
+        transform[0] = [transform[0][0],transform[0][s],transform[0][t]]
+        transform[1] = [transform[1][0],transform[1][s],transform[1][t]]
+        transform[2] = [transform[2][0],transform[2][s],transform[2][t]]
+        transform[3] = [transform[3][0],transform[3][s],transform[3][t]]
+
         basis_matrix = unreal.Matrix(
             basis[0],
             basis[1],
@@ -116,8 +145,35 @@ class LayoutLoader(plugin.Loader):
             transform[3]
         )
 
+        MAYA_TO_UNREAL = [[],[],[],[]]
+        MAYA_TO_UNREAL[0] = [ 1, 0, 0, 0]
+        MAYA_TO_UNREAL[1] = [ 0, 0,-1, 0]
+        MAYA_TO_UNREAL[2] = [ 0, 1, 0, 0]
+        MAYA_TO_UNREAL[3] = [ 0, 0, 0, 1]
+
+        MAYA_TO_UNREAL_MATRIX = unreal.Matrix(
+        MAYA_TO_UNREAL[0],
+        MAYA_TO_UNREAL[1],
+        MAYA_TO_UNREAL[2],
+        MAYA_TO_UNREAL[3] )
+
+        bob = unreal.Rotator(0,270,0)
+        t = bob.transform()
+        MAYA_TO_UNREAL_X_MATRIX = t.to_matrix()
+        MAYA_TO_UNREAL__X = [[],[],[],[]]
+        MAYA_TO_UNREAL__X[0] = [ 0, 0, -1, 0]
+        MAYA_TO_UNREAL__X[1] = [ 0, 1, 0, 0]
+        MAYA_TO_UNREAL__X[2] = [ 1, 0, 0, 0]
+        MAYA_TO_UNREAL__X[3] = [ 0, 0, 0, 0]
+
+        MAYA_TO_UNREAL_MATRIX_XXX = unreal.Matrix(
+        MAYA_TO_UNREAL__X[0],
+        MAYA_TO_UNREAL__X[1],
+        MAYA_TO_UNREAL__X[2],
+        MAYA_TO_UNREAL__X[3] )
+
         new_transform = (
-            basis_matrix.get_inverse() * transform_matrix * basis_matrix)
+            MAYA_TO_UNREAL_MATRIX * MAYA_TO_UNREAL_X_MATRIX* basis_matrix.get_inverse() *  transform_matrix * basis_matrix )
 
         return new_transform.transform()
 
@@ -125,17 +181,26 @@ class LayoutLoader(plugin.Loader):
         self, assets, class_name, transform, basis, sequence, inst_name=None
     ):
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
-
         actors = []
         bindings = []
-
         for asset in assets:
             obj = ar.get_asset_by_object_path(asset).get_asset()
             if obj.get_class().get_name() == class_name:
-                t = self._transform_from_basis(transform, basis)
-                actor = EditorLevelLibrary.spawn_actor_from_object(
-                    obj, t.translation
-                )
+
+                t = self._transform_from_basis(transform, basis,swap_axis=True)
+                actor = None
+                for _a in EditorLevelLibrary.get_all_level_actors():
+                    if _a.get_actor_label() == inst_name:
+                        actor = _a
+                        actor.set_actor_location(t.translation,False,False)
+                        break
+                if not actor:
+                    actor = EditorLevelLibrary.spawn_actor_from_object(
+                        obj, t.translation
+                    )
+                    actor.set_actor_label(inst_name)
+
+
                 actor.set_actor_rotation(t.rotation.rotator(), False)
                 actor.set_actor_scale3d(t.scale3d)
 
@@ -143,7 +208,6 @@ class LayoutLoader(plugin.Loader):
                     skm_comp = actor.get_editor_property(
                         'skeletal_mesh_component')
                     skm_comp.set_bounds_scale(10.0)
-
                 actors.append(actor)
 
                 if sequence:
@@ -221,7 +285,6 @@ class LayoutLoader(plugin.Loader):
         )
 
         animation = None
-
         for a in asset_content:
             unreal.EditorAssetLibrary.save_asset(a)
             imported_asset_data = unreal.EditorAssetLibrary.find_asset_data(a)
@@ -244,7 +307,6 @@ class LayoutLoader(plugin.Loader):
                 'animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
             actor.skeletal_mesh_component.animation_data.set_editor_property(
                 'anim_to_play', animation)
-
             if sequence:
                 # Add animation to the sequencer
                 bindings = bindings_dict.get(instance_name)
@@ -330,7 +392,6 @@ class LayoutLoader(plugin.Loader):
         skeleton_dict = {}
         actors_dict = {}
         bindings_dict = {}
-
         loaded_assets = []
 
         repre_docs_by_version_id = self._get_repre_docs_by_version_id(data)
@@ -350,13 +411,13 @@ class LayoutLoader(plugin.Loader):
 
             # This is to keep compatibility with old versions of the
             # json format.
+
             elif element.get('reference_fbx'):
                 representation = element.get('reference_fbx')
                 repr_format = 'fbx'
             elif element.get('reference_abc'):
                 representation = element.get('reference_abc')
                 repr_format = 'abc'
-
             # If reference is None, this element is skipped, as it cannot be
             # imported in Unreal
             if not representation:
@@ -364,17 +425,16 @@ class LayoutLoader(plugin.Loader):
 
             instance_name = element.get('instance_name')
 
-            skeleton = None
-
             if representation not in repr_loaded:
+
                 repr_loaded.append(representation)
 
                 family = element.get('family')
+
                 loaders = loaders_from_representation(
                     all_loaders, representation)
 
                 loader = None
-
                 if repr_format == 'fbx':
                     loader = self._get_fbx_loader(loaders, family)
                 elif repr_format == 'abc':
@@ -388,6 +448,7 @@ class LayoutLoader(plugin.Loader):
                 options = {
                     # "asset_dir": asset_dir
                 }
+                from openpype.pipeline.load import utils
 
                 assets = load_container(
                     loader,
@@ -395,8 +456,8 @@ class LayoutLoader(plugin.Loader):
                     namespace=instance_name,
                     options=options
                 )
-
                 container = None
+                skeleton = None
 
                 for asset in assets:
                     obj = ar.get_asset_by_object_path(asset).get_asset()
@@ -405,7 +466,6 @@ class LayoutLoader(plugin.Loader):
                     if obj.get_class().get_name() == 'Skeleton':
                         skeleton = obj
 
-                loaded_assets.append(container.get_path_name())
 
                 instances = [
                     item for item in data
@@ -415,18 +475,19 @@ class LayoutLoader(plugin.Loader):
                         item.get('reference_abc') == representation)]
 
                 for instance in instances:
-                    # transform = instance.get('transform')
                     transform = instance.get('transform_matrix')
                     basis = instance.get('basis')
                     inst = instance.get('instance_name')
 
                     actors = []
-
                     if family == 'model':
-                        actors, _ = self._process_family(
+                        actors, bindings  = self._process_family(
                             assets, 'StaticMesh', transform, basis,
                             sequence, inst
                         )
+                        actors_dict[inst] = actors
+                        bindings_dict[inst] = bindings
+
                     elif family == 'rig':
                         actors, bindings = self._process_family(
                             assets, 'SkeletalMesh', transform, basis,
@@ -435,11 +496,27 @@ class LayoutLoader(plugin.Loader):
                         actors_dict[inst] = actors
                         bindings_dict[inst] = bindings
 
+                    elif family == 'staticMesh':
+                        actors, bindings = self._process_family(
+                            assets, 'AtomModel', transform, basis,
+                            sequence, inst
+                        )
+
+                    elif family == 'placeholder':
+                        actors, bindings = self._process_family(
+                            assets, 'Blueprint', transform, basis,
+                            sequence, inst
+                        )
+
+                        actors_dict[inst] = actors
+                        bindings_dict[inst] = bindings
+
+                    else:
+                        print("oh dear...")
                 if skeleton:
                     skeleton_dict[representation] = skeleton
             else:
                 skeleton = skeleton_dict.get(representation)
-
             animation_file = element.get('animation')
 
             if animation_file and skeleton:
@@ -514,7 +591,6 @@ class LayoutLoader(plugin.Loader):
         """
         data = get_current_project_settings()
         create_sequences = data["unreal"]["level_sequences_for_layouts"]
-
         # Create directory for asset and Ayon container
         hierarchy = context.get('asset').get('data').get('parents')
         root = self.ASSET_ROOT
@@ -526,13 +602,11 @@ class LayoutLoader(plugin.Loader):
         asset = context.get('asset').get('name')
         suffix = "_CON"
         asset_name = f"{asset}_{name}" if asset else name
-
         tools = unreal.AssetToolsHelpers().get_asset_tools()
         asset_dir, container_name = tools.create_unique_asset_name(
             "{}/{}/{}".format(hierarchy_dir, asset, name), suffix="")
 
         container_name += suffix
-
         EditorAssetLibrary.make_directory(asset_dir)
 
         master_level = None
@@ -541,13 +615,12 @@ class LayoutLoader(plugin.Loader):
 
         level = f"{asset_dir}/{asset}_map.{asset}_map"
         EditorLevelLibrary.new_level(f"{asset_dir}/{asset}_map")
-
         if create_sequences:
             # Create map for the shot, and create hierarchy of map. If the
             # maps already exist, we will use them.
             if hierarchy:
-                h_dir = hierarchy_dir_list[0]
-                h_asset = hierarchy[0]
+                h_dir = hierarchy_dir_list[1]
+                h_asset = hierarchy[1]
                 master_level = f"{h_dir}/{h_asset}_map.{h_asset}_map"
                 if not EditorAssetLibrary.does_asset_exist(master_level):
                     EditorLevelLibrary.new_level(f"{h_dir}/{h_asset}_map")
@@ -588,13 +661,35 @@ class LayoutLoader(plugin.Loader):
                             e.get_asset().get_playback_start(),
                             e.get_asset().get_playback_end()))
 
-            shot = tools.create_asset(
-                asset_name=asset,
-                package_path=asset_dir,
-                asset_class=unreal.LevelSequence,
-                factory=unreal.LevelSequenceFactoryNew()
-            )
+            # FIXME -  Get Current LevelSequence objects and check if already present
+            # DONE
+            asset_children = EditorAssetLibrary.list_assets(
+                asset_dir, recursive=False, include_folder=False)
+            ar = unreal.AssetRegistryHelpers.get_asset_registry()
+            shot = None
 
+            # Get all the asset containers
+            for a in asset_children:
+                obj = ar.get_asset_by_object_path(a)
+                _a = obj.get_asset()
+                if _a.get_name() == asset and _a.get_class().get_name() == "LevelSequence":
+                    shot = _a
+
+            ## FIXME use existing levels
+
+            # If shot does nt ex
+            if not shot:
+                shot = tools.create_asset(
+                    asset_name=asset,
+                    package_path=asset_dir,
+                    asset_class=unreal.LevelSequence,
+                    factory=unreal.LevelSequenceFactoryNew()
+                    )
+                self.log.warning("Made new shot :"+str(shot.get_name()))
+
+            else:
+
+                self.log.warning("using existing shot :"+str(shot.get_name()))
             # sequences and frame_ranges have the same length
             for i in range(0, len(sequences) - 1):
                 set_sequence_hierarchy(
@@ -607,8 +702,8 @@ class LayoutLoader(plugin.Loader):
             data = get_asset_by_name(project_name, asset)["data"]
             shot.set_display_rate(
                 unreal.FrameRate(data.get("fps"), 1.0))
-            shot.set_playback_start(0)
-            shot.set_playback_end(data.get('clipOut') - data.get('clipIn') + 1)
+            shot.set_playback_start(data.get('frameStart'))
+            shot.set_playback_end(data.get('frameEnd'))
             if sequences:
                 set_sequence_hierarchy(
                     sequences[-1], shot,
@@ -626,9 +721,26 @@ class LayoutLoader(plugin.Loader):
 
         EditorLevelLibrary.save_current_level()
 
+
+        asset_children = EditorAssetLibrary.list_assets(
+            asset_dir, recursive=False, include_folder=False)
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        container = None
+
+        # Get all the asset containers
+        for a in asset_children:
+            obj = ar.get_asset_by_object_path(a)
+            _a = obj.get_asset()
+            if _a.get_name() == container_name and _a.get_class().get_name() == "AyonAssetContainer":
+                container = _a
+
+
         # Create Asset Container
-        create_container(
-            container=container_name, path=asset_dir)
+        if not container:
+            create_container(
+                container=container_name, path=asset_dir)
+        else:
+            pass
 
         data = {
             "schema": "ayon:container-2.0",
@@ -654,8 +766,9 @@ class LayoutLoader(plugin.Loader):
         for a in asset_content:
             EditorAssetLibrary.save_asset(a)
 
-        if master_level:
-            EditorLevelLibrary.load_level(master_level)
+        #if master_level:
+        #
+        EditorLevelLibrary.load_level(master_level)
 
         return asset_content
 

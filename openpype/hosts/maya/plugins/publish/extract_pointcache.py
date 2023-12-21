@@ -1,7 +1,8 @@
 import os
-
+import importlib
 from maya import cmds
-
+from openpype.hosts.maya.api import fbx
+importlib.reload(fbx)
 from openpype.pipeline import publish
 from openpype.hosts.maya.api.lib import (
     extract_alembic,
@@ -27,15 +28,19 @@ class ExtractAlembic(publish.Extractor):
     targets = ["local", "remote"]
 
     def process(self, instance):
+
+
         if instance.data.get("farm"):
             self.log.debug("Should be processed on farm, skipping.")
             return
-
+        if instance.data.get("exportFBX", False):
+            self.log.debug("Skipping abc cache exporting fbx.")
+            return
         nodes, roots = self.get_members_and_roots(instance)
 
         # Collect the start and end including handles
-        start = float(instance.data.get("frameStartHandle", 1))
-        end = float(instance.data.get("frameEndHandle", 1))
+        start = float(instance.data.get("handleStart", 1))
+        end = float(instance.data.get("handleEnd", 1))
 
         attrs = instance.data.get("attr", "").split(";")
         attrs = [value for value in attrs if value.strip()]
@@ -107,14 +112,13 @@ class ExtractAlembic(publish.Extractor):
         }
         instance.data["representations"].append(representation)
 
-        if not instance.data.get("stagingDir_persistent", False):
-            instance.context.data["cleanupFullPaths"].append(path)
+        instance.context.data["cleanupFullPaths"].append(path)
 
-        self.log.debug("Extracted {} to {}".format(instance, dirname))
+        self.log.info("Extracted {} to {}".format(instance, dirname))
 
         # Extract proxy.
         if not instance.data.get("proxy"):
-            self.log.debug("No proxy nodes found. Skipping proxy extraction.")
+            self.log.info("No proxy nodes found. Skipping proxy extraction.")
             return
 
         path = path.replace(".abc", "_proxy.abc")
@@ -123,6 +127,7 @@ class ExtractAlembic(publish.Extractor):
             # The roots are to be considered the ones that are the actual
             # direct members of the set
             options["root"] = instance.data["proxyRoots"]
+
 
         with suspended_refresh(suspend=suspend):
             with maintained_selection():
@@ -167,3 +172,40 @@ class ExtractAnimation(ExtractAlembic):
                                            fullPath=True) or []
 
         return nodes, roots
+
+    def process(self, instance):
+        super().process(instance)
+
+        out_sets = [node for node in instance if node.endswith("joints_SET")]
+        geo_sets = [node for node in instance if node.endswith("out_SET")]
+
+        if instance.data.get("exportFBX", False) and out_sets:
+            parent_dir = self.staging_dir(instance)
+            fbxfilename = "{name}.fbx".format(**instance.data)
+            fbxpath = os.path.join(parent_dir, fbxfilename)
+
+            ### WRITE FBX
+            #instance.data['animationOnly']=True
+
+            joints_to_export = cmds.sets(out_sets[0], query=True)
+            joints_to_export = cmds.listRelatives(joints_to_export,ad=True,type="joint")
+            fbx_exporter = fbx.FBXExtractor(log=self.log)
+            instance.data["upAxis"]="z"
+            fbx_exporter.set_options_from_instance(instance)
+
+            fbx_exporter.export(joints_to_export, fbxpath.replace("\\","/"))
+
+            # Get Namespace to store in publish representation
+            _node = cmds.referenceQuery(out_sets[0], rfn=True)
+            _namespace =str(cmds.referenceQuery(_node,namespace=True))
+            self.log.info('Storing Representation namespace as "{}" '.format(_namespace))
+
+            representation = {
+                "name": "fbx",
+                "ext": "fbx",
+                "files": fbxfilename,
+                "stagingDir": parent_dir,
+                "outputName": "fbxanim",
+                "namespace":_namespace
+            }
+            instance.data["representations"].append(representation)

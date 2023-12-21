@@ -45,12 +45,15 @@ class ValidateFrameRange(pyblish.api.InstancePlugin,
         if not self.is_active(instance.data):
             return
 
+        if instance.data.get("family") == "camera" and instance.data.get("shiftSequenceAmimation"):
+            return
+
         context = instance.context
         if instance.data.get("tileRendering"):
-            self.log.debug(
+            self.log.info((
                 "Skipping frame range validation because "
                 "tile rendering is enabled."
-            )
+            ))
             return
 
         frame_start_handle = int(context.data.get("frameStartHandle"))

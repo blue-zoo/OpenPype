@@ -184,3 +184,44 @@ class ImportMayaLoader(openpype.hosts.maya.api.plugin.Loader):
                                               defaultButton=accept)
 
         return state == accept
+
+class ImportMayaLoaderClean(load.LoaderPlugin):
+    """Import action for Maya (unmanaged)
+
+    Warning:
+        The loaded content will be unmanaged and is *not* visible in the
+        scene inventory. It's purely intended to merge content into your scene
+        so you could also use it as a new base.
+
+    """
+    representations = ["ma", "mb", "obj"]
+    families = [
+        "layout_multi"
+    ]
+
+    label = "Create New Scene From Scene"
+    order = 10
+    icon = "arrow-circle-down"
+    color = "#775555"
+
+
+    def load(self, context, name=None, namespace=None, data=None):
+        import maya.cmds as cmds
+
+
+        asset = context['asset']
+
+        _oldFileName = cmds.file(q=1,sn=1)
+        path = self.filepath_from_context(context)
+        cmds.file(new=True,force=True)
+
+        nodes = cmds.file(path,
+                            i=True,
+                            preserveReferences=True,
+                            namespace=":",
+                            returnNewNodes=True,
+                            groupReference=False
+                            )
+        if _oldFileName not in ["",None]:
+            cmds.file(rename=_oldFileName)
+        return

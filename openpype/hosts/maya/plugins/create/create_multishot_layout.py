@@ -14,6 +14,8 @@ from openpype.pipeline import (
     get_current_asset_name,
     get_current_project_name,
 )
+
+
 from openpype.pipeline.create import CreatorError
 
 
@@ -27,7 +29,7 @@ class CreateMultishotLayout(plugin.MayaCreator):
 
     """
     identifier = "io.openpype.creators.maya.multishotlayout"
-    label = "Multi-shot Layout"
+    label = "Camera Sequencer Layout Files"
     family = "layout"
     icon = "project-diagram"
 
@@ -44,6 +46,7 @@ class CreateMultishotLayout(plugin.MayaCreator):
                  is not unique across the project until the switch mentioned
                  above is done.
         """
+
 
         project_name = get_current_project_name()
         folder_path = get_current_asset_name()
@@ -89,6 +92,10 @@ class CreateMultishotLayout(plugin.MayaCreator):
 
             items_with_label.append({"label": label, "value": value})
 
+        # Remove the project and production folder from the children option
+        del items_with_label[0]
+        del items_with_label[0]
+
         return [
             EnumDef("shotParent",
                     default=current_folder["name"],
@@ -104,7 +111,7 @@ class CreateMultishotLayout(plugin.MayaCreator):
                     label="Associated Task Name",
                     tooltip=("Task name to be associated "
                              "with the created Layout"),
-                    default="layout"),
+                    default="Layout"),
         ]
 
     def create(self, subset_name, instance_data, pre_create_data):
@@ -122,17 +129,32 @@ class CreateMultishotLayout(plugin.MayaCreator):
                 f"folder: {pre_create_data['shotParent']}."))
 
         # Get layout creator
-        layout_creator_id = "io.openpype.creators.maya.layout"
+        layout_creator_id = "io.openpype.creators.maya.layoutMayaFile"
         layout_creator: Creator = self.create_context.creators.get(
             layout_creator_id)
         if not layout_creator:
             raise CreatorError(
                 f"Creator {layout_creator_id} not found.")
 
+        # TODO: Remove in later copies of ayon
+        layout_creator.default_variant = "Main"
+
+        # Get camera creator
+        camera_creator_id = "io.openpype.creators.maya.camera"
+        camera_creator: Creator = self.create_context.creators.get(
+            camera_creator_id)
+        if not layout_creator:
+            raise camera_creator(
+                f"Creator {camera_creator_id} not found.")
+        # TODO: Remove in later copies of ayon
+        camera_creator.default_variant = "Main"
+
+
         # Get OpenPype style asset documents for the shots
         op_asset_docs = get_assets(
             self.project_name, [s["id"] for s in shots])
         asset_docs_by_id = {doc["_id"]: doc for doc in op_asset_docs}
+
         for shot in shots:
             # we are setting shot name to be displayed in the sequencer to
             # `shot name (shot label)` if the label is set, otherwise just
@@ -151,30 +173,101 @@ class CreateMultishotLayout(plugin.MayaCreator):
 
             shot_name = f"{shot['name']}%s" % (
                 f" ({shot['label']})" if shot["label"] else "")
-            cmds.shot(sequenceStartTime=shot["attrib"]["clipIn"],
-                      sequenceEndTime=shot["attrib"]["clipOut"],
-                      shotName=shot_name)
 
+            # Find existing Shot
+            _existingShot = cmds.ls(shot_name,et="shot")
+            if not _existingShot:
+
+                _shotNode = cmds.shot(sequenceStartTime=shot["attrib"]["clipIn"],
+                        st=shot["attrib"]["clipIn"],
+                        et=shot["attrib"]["clipOut"],
+                        shotName=shot_name)
+                _shotNode = cmds.rename(_shotNode,shot_name)
+                cmds.addAttr(_shotNode, longName='shotNode', attributeType='message' )
+
+            else:
+                _shotNode = _existingShot[0]
+                cmds.shot(
+                        _shotNode,
+                        edit=True,
+                        sequenceStartTime=shot["attrib"]["clipIn"],
+                        st=shot["attrib"]["clipIn"],
+                        et=shot["attrib"]["clipOut"]
+                        )
+            print(123,pre_create_data)
             # Create layout instance by the layout creator
 
+            #import pdb
+            #pdb.set_trace()
             instance_data = {
-                "folderPath": shot["path"],
+                "asset": shot["name"],
                 "variant": layout_creator.get_default_variant()
             }
             if layout_task:
                 instance_data["task"] = layout_task
 
-            layout_creator.create(
-                subset_name=layout_creator.get_subset_name(
+            _layoutSubsetName = shot["name"]+"_"+layout_creator.get_subset_name(
                     layout_creator.get_default_variant(),
                     self.create_context.get_current_task_name(),
                     asset_doc,
-                    self.project_name),
-                instance_data=instance_data,
-                pre_create_data={
-                    "groupLoadedAssets": pre_create_data["groupLoadedAssets"]
-                }
-            )
+                    self.project_name)
+
+            _cameraSubsetName = shot["name"]+"_"+camera_creator.get_subset_name(
+                    camera_creator.get_default_variant(),
+                    self.create_context.get_current_task_name(),
+                    asset_doc,
+                    self.project_name)
+
+            _existingLayoutSubset = ([s for s in cmds.ls("*.subset") if cmds.getAttr(s) == _layoutSubsetName])
+            _existingCameraSubset = ([s for s in cmds.ls("*.subset") if cmds.getAttr(s) == _cameraSubsetName])
+
+            #
+            # Make the Layout Publish Set
+            #
+
+            if not _existingLayoutSubset:
+
+                _publishLayoutInstance = layout_creator.create(
+                    subset_name=_layoutSubsetName,
+                    instance_data=instance_data,
+                    pre_create_data={
+                        "groupLoadedAssets": pre_create_data["groupLoadedAssets"]
+                    }
+                )
+                _layoutPublishSet=_publishLayoutInstance.get("instance_node")
+
+                cmds.addAttr(_layoutPublishSet, longName='shotNode', attributeType='message' )
+                cmds.addAttr(_layoutPublishSet, longName='cameraSet', attributeType='message' )
+
+            else:
+                _layoutPublishSet = _existingLayoutSubset[0].split(".")[0]
+
+            if not _existingCameraSubset:
+                _publishCameraInstance = camera_creator.create(
+                    subset_name=_cameraSubsetName,
+                    instance_data=instance_data,
+                    pre_create_data={}
+                )
+                _cameraPublishSet=_publishCameraInstance.get("instance_node")
+                cmds.setAttr(_cameraPublishSet+".frameStart",shot["attrib"]["frameStart"])
+                cmds.setAttr(_cameraPublishSet+".frameEnd",shot["attrib"]["frameEnd"])
+                cmds.setAttr(_cameraPublishSet+".handleStart",shot["attrib"]["handleStart"])
+                cmds.setAttr(_cameraPublishSet+".handleEnd",shot["attrib"]["handleEnd"])
+                cmds.setAttr(_cameraPublishSet+".shiftSequenceAmimation",True)
+
+                cmds.addAttr(_cameraPublishSet, longName='cameraSet', attributeType='message' )
+
+            else:
+                _cameraPublishSet = _existingCameraSubset[0].split(".")[0]
+
+            conns = cmds.listConnections(_shotNode+".shotNode",p=True,s=0,d=1) or []
+            if not _layoutPublishSet+".shotNode" in conns:
+                cmds.connectAttr(_shotNode+".shotNode",_layoutPublishSet+".shotNode",force=True)
+
+            conns = cmds.listConnections(_layoutPublishSet+".cameraSet",p=True,s=0,d=1) or []
+            if not _cameraPublishSet+".cameraSet" in conns:
+                cmds.connectAttr(_layoutPublishSet+".cameraSet",  _cameraPublishSet+".cameraSet",force=True)
+
 
     def get_related_shots(self, folder_path: str):
         """Get all shots related to the current asset.
@@ -198,16 +291,30 @@ class CreateMultishotLayout(plugin.MayaCreator):
             )
             parent_id = current_folder["id"]
 
-        # get all child folders of the current one
-        return get_folders(
+        return get_shot_from_hierarchy(
             project_name=self.project_name,
             parent_ids=[parent_id],
-            fields=[
-                "attrib.clipIn", "attrib.clipOut",
-                "attrib.frameStart", "attrib.frameEnd",
-                "name", "label", "path", "folderType", "id"
-            ]
         )
+
+
+def get_shot_from_hierarchy(project_name,parent_ids,found = []):
+    newFound = get_folders(
+        project_name=project_name,
+        parent_ids=parent_ids,
+        fields=[
+            "attrib.clipIn", "attrib.clipOut",
+            "attrib.frameStart", "attrib.frameEnd",
+            "attrib.handleStart", "attrib.handleEnd",
+            "name", "label", "path", "folderType", "id"
+        ])
+    newFound = [f for f in newFound ]
+    foundIds = [ x['id'] for x in found ]
+    newFound = [f for f in newFound if f['id'] not in foundIds ]
+    found.extend(newFound)
+    for f in newFound:
+        found = get_shot_from_hierarchy(project_name,[f["id"]],found = found)
+    found = [f for f in found if f['folderType'] == "Shot"]
+    return found
 
 
 # blast this creator if Ayon server is not enabled

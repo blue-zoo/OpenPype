@@ -2,12 +2,12 @@ from openpype.hosts.maya.api import plugin
 from openpype.lib import BoolDef
 
 
-class CreateLayout(plugin.MayaCreator):
+class CreateLayoutMayaFile(plugin.MayaCreator):
     """A grouped package of loaded content"""
 
-    identifier = "io.openpype.creators.maya.layout"
-    label = "Layout"
-    family = "layout"
+    identifier = "io.openpype.creators.maya.layoutMayaFile"
+    label = "Layout Breakout"
+    family = "layout_multi"
     icon = "cubes"
 
     def get_instance_attr_defs(self):
@@ -20,6 +20,5 @@ class CreateLayout(plugin.MayaCreator):
                     default=False),
             BoolDef("exportMayaFile",
                     label="Export Maya File",
-                    default=False),
-
+                    default=True),
         ]
