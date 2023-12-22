@@ -159,6 +159,9 @@ class FBXExtractor:
         end = instance.data.get("handleEnd") or \
             instance.context.data.get("frameEndHandle")
 
+        #add inclusive
+        end+=1
+
         options['bakeComplexStart'] = start
         options['bakeComplexEnd'] = end
 

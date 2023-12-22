@@ -272,8 +272,8 @@ class CameraLoader(plugin.Loader):
             track = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
             sections = track.get_sections()
             section = track.add_section()
-            section.set_range(clipIn,clipOut)
-            section.set_end_frame(clipOut)
+            section.set_range(clipIn,clipOut+1)
+            section.set_end_frame(clipOut+1)
 
         EditorLevelLibrary.save_all_dirty_levels()
 
