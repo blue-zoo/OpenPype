@@ -1,0 +1,738 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>666</width>
+    <height>663</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>LEGO Importer</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_3">
+    <item>
+     <widget class="QGroupBox" name="geoGrp">
+      <property name="title">
+       <string>Import/Update Geometry</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
+        <layout class="QGridLayout" name="geoPathLayout">
+         <item row="0" column="2">
+          <widget class="PromotedIconButton" name="xmlOpen">
+           <property name="toolTip">
+            <string>Navigate to LEGO XML file.</string>
+           </property>
+           <property name="statusTip">
+            <string>Navigate to LEGO XML file.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="xmlPath">
+           <property name="toolTip">
+            <string>Set the path to the LEGO XML file.
+This is typically saved with a .lxfml extension.</string>
+           </property>
+           <property name="statusTip">
+            <string>Set the path to the LEGO XML file.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string>Y:\LEGO\1686s_LegoCitySeries1\Libraries\Model_Library\_importingTestA\legoExample.lxfml</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="geoPathLabel">
+           <property name="text">
+            <string>Geo Path:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="PromotedIconButton" name="geoOpen">
+           <property name="toolTip">
+            <string>Navigate to LEGO geometry file.
+
+Some processing is done on the path to determine where the brick ID can be found.</string>
+           </property>
+           <property name="statusTip">
+            <string>Navigate to LEGO geometry file.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="xmlLabel">
+           <property name="text">
+            <string>XML Path:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QLineEdit" name="geoPath">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set the path to the lego geometry.&lt;/p&gt;&lt;p&gt;This is everything in the path before the brick ID.&lt;br/&gt;For example, for &lt;span style=&quot; font-weight:600;&quot;&gt;C:/bricks/brick_1234.ma&lt;/span&gt;, then this value would be &lt;span style=&quot; font-weight:600;&quot;&gt;C:/bricks/brick_&lt;/span&gt;.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="statusTip">
+              <string>Set the path to the lego geometry.</string>
+             </property>
+             <property name="placeholderText">
+              <string>Y:\LEGO\1686s_LegoCitySeries1\Libraries\Model_Library\_legoLibrary\High_processed\m</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="geoBrick">
+             <property name="font">
+              <font>
+               <italic>false</italic>
+              </font>
+             </property>
+             <property name="text">
+              <string>[brickID]</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="geoExt">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>40</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>.mb</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="geoParentLabel">
+           <property name="text">
+            <string>Group Name:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLineEdit" name="geoParent">
+           <property name="toolTip">
+            <string>Define a group to parent the bricks under.
+If left empty, no group will be used.</string>
+           </property>
+           <property name="statusTip">
+            <string>Set the brick geometry group name.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string>LEGO_Build</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="optionsLayout">
+         <property name="sizeConstraint">
+          <enum>QLayout::SetDefaultConstraint</enum>
+         </property>
+         <item row="0" column="1" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="deleteColourSets">
+           <property name="toolTip">
+            <string>Delete all colour sets.</string>
+           </property>
+           <property name="statusTip">
+            <string>Delete all colour sets.</string>
+           </property>
+           <property name="text">
+            <string>Delete Colour Sets</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="deleteHistory">
+           <property name="toolTip">
+            <string>Delete the construction history from all nodes.</string>
+           </property>
+           <property name="statusTip">
+            <string>Delete the construction history from all nodes.</string>
+           </property>
+           <property name="text">
+            <string>Delete History</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="setTexelDensity">
+           <property name="toolTip">
+            <string>Set the texel density to 25 | 512.
+
+This is a heavy operation and will add considerable processing time to the import.</string>
+           </property>
+           <property name="statusTip">
+            <string>Set a uniform texel density on all nodes.</string>
+           </property>
+           <property name="text">
+            <string>Set Texel Density</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="softenEdges">
+           <property name="toolTip">
+            <string>Apply the soften edge modifier.
+
+This is a heavy operation and will add considerable processing time to the import.</string>
+           </property>
+           <property name="statusTip">
+            <string>Apply the soften edge modifier.</string>
+           </property>
+           <property name="text">
+            <string>Soften Edges</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="updateDisplayEdges">
+           <property name="toolTip">
+            <string>Ensure &quot;Mesh Component Display Edges&quot; is set to &quot;Standard&quot;.</string>
+           </property>
+           <property name="statusTip">
+            <string>Ensure Display Edges is set to the default value.</string>
+           </property>
+           <property name="text">
+            <string>Set Standard Display Edges</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="updateUVs">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Rename UV sets to include map1 and bumpSet.
+
+If map1 or bumpSet already exists, it will be deleted.
+If any UV set contains the text &quot;3DP&quot;, then the first instance will be renamed to bumpSet.
+The very first UV set will be set to map1. If this clases with bumpSet, then bumpSet will be duplicated.</string>
+           </property>
+           <property name="statusTip">
+            <string>Add map1 and bumpSet UV sets.</string>
+           </property>
+           <property name="text">
+            <string>Rename UV Sets</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0" alignment="Qt::AlignHCenter">
+          <widget class="QCheckBox" name="updateDisplayColourChannel">
+           <property name="toolTip">
+            <string> Set the display colour channel to diffuse.</string>
+           </property>
+           <property name="statusTip">
+            <string> Set the display colour channel to diffuse.</string>
+           </property>
+           <property name="text">
+            <string>Set Diffuse Colour Channel</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="shdGrp">
+      <property name="title">
+       <string>Assign Shaders</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <layout class="QGridLayout" name="shaderPathLayout">
+         <item row="0" column="2">
+          <widget class="QLineEdit" name="shdPath">
+           <property name="toolTip">
+            <string>Path to the shaders file.</string>
+           </property>
+           <property name="statusTip">
+            <string>Path to the shaders file.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string>Y:\LEGO\1686s_LegoCitySeries1\Libraries\Shader_Library\shaders\master\published\master_shader.ma</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="PromotedIconButton" name="shdOpen">
+           <property name="toolTip">
+            <string>Navigate to a shader file.</string>
+           </property>
+           <property name="statusTip">
+            <string>Navigate to a shader file.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="nsLabel">
+           <property name="text">
+            <string>Namespace:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLineEdit" name="nsInput">
+           <property name="toolTip">
+            <string>Set the shader namespace.</string>
+           </property>
+           <property name="statusTip">
+            <string>Set the shader namespace.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string>shaders</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="shdPathLabel">
+           <property name="text">
+            <string>Shader Path:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="sgLabel">
+           <property name="text">
+            <string>Shading Group:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QLineEdit" name="sgInput">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Name of the shadingGroup node.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;A wildcard (&lt;span style=&quot; font-weight:600;&quot;&gt;*&lt;/span&gt;) may be used, and in the case of multiple shaders, use curly brackets (&lt;span style=&quot; font-weight:600;&quot;&gt;{}&lt;/span&gt;) to determine where in the name to put the material ID.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="statusTip">
+            <string>Name of the shadingGroup node.</string>
+           </property>
+           <property name="placeholderText">
+            <string>PLASTIC_MASTER_SG</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="paletteGrp">
+      <property name="title">
+       <string>Load Palette Colours</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <layout class="QGridLayout" name="gridLayout">
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="palettePath">
+           <property name="toolTip">
+            <string>Path to the palette colour list file.</string>
+           </property>
+           <property name="statusTip">
+            <string>Path to the palette colour list file.</string>
+           </property>
+           <property name="placeholderText">
+            <string>Y:/LEGO/1686s_LegoCitySeries1/Libraries/Shader_Library/Color_ID_List_BZ.json</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="paletteLabel">
+           <property name="text">
+            <string>Colour Palette:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="PromotedIconButton" name="paletteOpen">
+           <property name="toolTip">
+            <string>Navigate to a palette colour file.</string>
+           </property>
+           <property name="statusTip">
+            <string>Navigate to a palette colour file.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="vertexColours">
+         <property name="toolTip">
+          <string>Set brick vertex colours.</string>
+         </property>
+         <property name="statusTip">
+          <string>Set brick vertex colours.</string>
+         </property>
+         <property name="text">
+          <string>Set Vertex Colours</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="decalGrp">
+      <property name="title">
+       <string>Decals</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <property name="checked">
+        <bool>false</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QGroupBox" name="decalShadingNetwork">
+         <property name="title">
+          <string>Create and assign local shading network</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QCheckBox" name="decalDoubleSided">
+            <property name="text">
+             <string>Double Sided</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="decalStickers">
+            <property name="text">
+             <string>Stickers</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="2">
+          <widget class="QLineEdit" name="decalPath">
+           <property name="toolTip">
+            <string>Path to the decals directory.</string>
+           </property>
+           <property name="statusTip">
+            <string>Path to the decals directory.</string>
+           </property>
+           <property name="placeholderText">
+            <string>Y:\LEGO\1686s_LegoCitySeries1\Libraries\Texture_Library\Decorations</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0" alignment="Qt::AlignRight">
+          <widget class="QLabel" name="decalLabel">
+           <property name="text">
+            <string>Decal Files:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0" alignment="Qt::AlignRight">
+          <widget class="QLabel" name="maskLabel">
+           <property name="text">
+            <string>Mask Switch:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="2">
+          <widget class="QLineEdit" name="maskInput">
+           <property name="toolTip">
+            <string>Name of the mask switch.</string>
+           </property>
+           <property name="statusTip">
+            <string>Name of the mask switch.</string>
+           </property>
+           <property name="placeholderText">
+            <string>DECAL_MASK_SWITCH_00_09</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="PromotedIconButton" name="decalOpen">
+           <property name="toolTip">
+            <string>Open the directory containing LEGO decal PNG files.</string>
+           </property>
+           <property name="statusTip">
+            <string>Open the directory containing LEGO decal files.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" alignment="Qt::AlignRight">
+          <widget class="QLabel" name="switchLabel">
+           <property name="text">
+            <string>Shader Switch:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLineEdit" name="switchInput">
+           <property name="toolTip">
+            <string>Name of the shader switch.</string>
+           </property>
+           <property name="statusTip">
+            <string>Name of the shader switch.</string>
+           </property>
+           <property name="placeholderText">
+            <string>DECAL_COL_SWITCH_00_09</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <layout class="QHBoxLayout" name="shaderSwitchValidation">
+           <item>
+            <widget class="PromotedIcon" name="shaderSwitchValid">
+             <property name="toolTip">
+              <string>Matching shader switch found in the scene.</string>
+             </property>
+             <property name="statusTip">
+              <string>Matching shader switch found in the scene.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PromotedIcon" name="shaderSwitchInvalid">
+             <property name="toolTip">
+              <string>Matching shader switch not found in the scene.</string>
+             </property>
+             <property name="statusTip">
+              <string>Matching shader switch not found in the scene.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="2" column="3">
+          <layout class="QHBoxLayout" name="maskSwitchValidation">
+           <item>
+            <widget class="PromotedIcon" name="maskSwitchValid">
+             <property name="toolTip">
+              <string>Matching mask switch found in the scene.</string>
+             </property>
+             <property name="statusTip">
+              <string>Matching mask switch found in the scene.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="PromotedIcon" name="maskSwitchInvalid">
+             <property name="toolTip">
+              <string>Matching mask switch not found in the scene.</string>
+             </property>
+             <property name="statusTip">
+              <string>Matching mask switch not found in the scene.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <spacer name="verticalSpacer">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>0</width>
+        <height>0</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QPushButton" name="runImport">
+      <property name="toolTip">
+       <string>Run the imports and updates.</string>
+      </property>
+      <property name="statusTip">
+       <string>Run the imports and updates.</string>
+      </property>
+      <property name="text">
+       <string>Import/Update</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>666</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="menuDocs"/>
+   </widget>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="menuClose"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="menuDocs">
+   <property name="text">
+    <string>Documentation</string>
+   </property>
+   <property name="toolTip">
+    <string>Opens a web browser to view the documentation.</string>
+   </property>
+   <property name="statusTip">
+    <string>View the documentation.</string>
+   </property>
+  </action>
+  <action name="menuClose">
+   <property name="text">
+    <string>Close</string>
+   </property>
+   <property name="toolTip">
+    <string>Close the window.</string>
+   </property>
+   <property name="statusTip">
+    <string>Close the window.</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PromotedIconButton</class>
+   <extends>QPushButton</extends>
+   <header location="global">openpype.hosts.maya.tools.bz.lego_xml.iconbutton.py</header>
+  </customwidget>
+  <customwidget>
+   <class>PromotedIcon</class>
+   <extends>QPushButton</extends>
+   <header>openpype.hosts.maya.tools.bz.lego_xml.iconbutton.py</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
