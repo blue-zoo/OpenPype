@@ -95,6 +95,7 @@ class CreateMultishotLayout(plugin.MayaCreator):
         # Remove the project and production folder from the children option
         del items_with_label[0]
         del items_with_label[0]
+        del items_with_label[0]
 
         return [
             EnumDef("shotParent",
@@ -171,10 +172,10 @@ class CreateMultishotLayout(plugin.MayaCreator):
             if pre_create_data["taskName"] in tasks:
                 layout_task = pre_create_data["taskName"]
 
-            shot_name = f"{shot['name']}%s" % (
-                f" ({shot['label']})" if shot["label"] else "")
+            shot_name = shot['name']
 
             # Find existing Shot
+            print("Looknig For -",shot_name,"-")
             _existingShot = cmds.ls(shot_name,et="shot")
             if not _existingShot:
 
