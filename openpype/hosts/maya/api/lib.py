@@ -1685,6 +1685,64 @@ def assign_look_by_version(nodes, version_id):
     # Assign relationships
     apply_shaders(relationships, shader_nodes, nodes)
 
+    # Try to connect attributes from rig to shader nodes IF
+    make_rig_to_shader_connections(nodes, shader_nodes)
+
+
+def make_rig_to_shader_connections(nodes, shader_nodes):
+    """Makes any defined connections from a rig (nodes) to a shader (shader_nodes).
+
+    This function only has an effect if the nodes are part of a rigged asset
+    and that rigged asset defines _rig to shader_ connections via the
+    'C_attributePublish_LOC' passthrough node.
+
+    Args:
+        nodes(list): nodes the look is being assigned to
+        shader_nodes(list): nodes part of the look being assigned
+
+    Returns:
+        None
+    """
+    if not nodes or not shader_nodes:
+        return
+
+    def _get_namespace(node):
+        long_name = node.split(':')[0]
+        return long_name.strip('|')
+
+    # these are sets when coming from `load_look`  v
+    nodes_namespace = _get_namespace(next(iter(nodes)))
+    shader_namespace = _get_namespace(next(iter(shader_nodes)))
+    passthrough_node = nodes_namespace + ':C_attributePublish_LOC'
+    passthrough_attr = passthrough_node + '.attributePublish'
+
+    connections = None
+    if cmds.objExists(passthrough_attr):
+        connections = cmds.getAttr(passthrough_attr)
+
+    if not isinstance(connections, str):
+        return
+
+    for connection in connections.split(';'):
+        if not connection:
+            continue
+
+        try:
+            source,dest = connection.split('>')
+        except ValueError:
+            cmds.warning('Rig to Shader Connection: Skipping '
+                      f'malformatted connection pair: {connection}')
+            continue
+
+        try:
+            cmds.connectAttr(nodes_namespace + ':' + source,
+                             shader_namespace + ':' + dest,
+                             f=1)
+        except RuntimeError:
+            cmds.warning(
+                'Rig to Shader Connection: Error making connection: '
+               f'{nodes_namespace}:{source} > {shader_namespace}:{dest}')
+
 
 def assign_look(nodes, subset="lookDefault"):
     """Assigns a look to a node.
