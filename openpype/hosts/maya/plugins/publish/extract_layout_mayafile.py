@@ -36,7 +36,7 @@ class ExtractLayoutMayaFile(publish.Extractor):
         _instanceSet = str(instance)
 
         # Shot node
-        _shotNodes = cmds.listConnections(_instanceSet+".shotNode",d=0,s=1)
+        _shotNodes = cmds.listConnections(_instanceSet+".__shotNode",d=0,s=1)
         if not _shotNodes or len(_shotNodes) != 1:
             raise Exception('The Instance Set "{s}" does not have a single linked Camera Seqeuncer Shot'.format(s=_instanceSet) )
 
@@ -190,13 +190,21 @@ class ExtractLayoutMayaFile(publish.Extractor):
 
         _layoutPublishSet = instance.data.get("instance_node")
         _layoutPublishSetMembers = cmds.sets( _layoutPublishSet, q=True )
-        _cameraPublishSets = cmds.listConnections(_layoutPublishSet+".cameraSet",s=0,d=1) or []
-        _layoutShotNodes = cmds.listConnections(_layoutPublishSet+".shotNode",s=1,d=0) or []
+        _cameraPublishSets = cmds.listConnections(_layoutPublishSet+".__cameraSet",s=0,d=1) or []
+        _layoutShotNodes = cmds.listConnections(_layoutPublishSet+".__shotNode",s=1,d=0) or []
 
         # To Export Selection
         _toExport = [_layoutPublishSet]
         _layoutPublishSetMembers = [ n for n in cmds.ls(_layoutPublishSetMembers,long=True)  ]
         _toExport.extend( _layoutPublishSetMembers )
+
+        # Go through the animation reference containers and add them to the exportable sets
+        _layoutPublishSetMembersChildren = cmds.listRelatives(_layoutPublishSetMembers, c=True) or []
+        _layoutReferenceNodes = [cmds.referenceQuery(n, rfn=True ) for n in _layoutPublishSetMembersChildren if cmds.referenceQuery(n, inr=True )]
+        _allReferenceSets = cmds.ls("*.loader", long=True, type="objectSet", recursive=True,
+                        objectsOnly=True) or []
+        _referenceLoaderSets = [set for set in _allReferenceSets for setContent in cmds.sets( set, q=True ) if setContent in _layoutReferenceNodes ]
+        _toExport.extend( _referenceLoaderSets )
 
         if _cameraPublishSets:
             _cameraPublishSet = _cameraPublishSets[0]
@@ -229,12 +237,30 @@ class ExtractLayoutMayaFile(publish.Extractor):
             # Set the publishing instance to regular publish
             cmds.setAttr(_layoutPublishSet+".creator_identifier","io.openpype.creators.maya.layout",type="string")
             cmds.setAttr(_layoutPublishSet+".family","layout",type="string")
+            _preExportTask = cmds.getAttr(_layoutPublishSet+".task")
+            _preExportFolderPath = cmds.getAttr(_layoutPublishSet+".folderPath")
+
+            # Set all of the tasks to Animation on all publoshign instances
+            _allSets = cmds.ls("*.creator_identifier", long=True, type="objectSet", recursive=True,
+                            objectsOnly=True) or []
+
+            for _set in _allSets:
+                cmds.setAttr(_set+".task","Animation",type="string")
+                # If its an animation publish set its folder path to the shot and the time to the shot time
+                if cmds.getAttr(_set+".creator_identifier") in  ["io.openpype.creators.maya.animation"]:
+                    cmds.setAttr(_set+".folderPath",_preExportFolderPath,type="string")
+                    cmds.setAttr(_set+".active",True)
+                    cmds.setAttr(_set+".frameStart",_layoutShotStartFrame)
+                    cmds.setAttr(_set+".frameEnd",_layoutShotEndFrame)
+                    cmds.setAttr(_set+".handleStart",_layoutShotStartHandle)
+                    cmds.setAttr(_set+".handleEnd",_layoutShotEndHandle)
 
             # Set the start and end frame of the camera publish to the shot
             cmds.setAttr(_cameraPublishSet+".frameStart",_layoutShotStartFrame)
             cmds.setAttr(_cameraPublishSet+".frameEnd",_layoutShotEndFrame)
             cmds.setAttr(_cameraPublishSet+".handleStart",_layoutShotStartHandle)
             cmds.setAttr(_cameraPublishSet+".handleEnd",_layoutShotEndHandle)
+            cmds.setAttr(_cameraPublishSet+".shiftSequenceAmimation",False)
 
             # Adjust animation so that animation starts on start frame of shot
             _timeOffset = float(_layoutShotStartFrame) - float(_shotNodeSequenceStartFrame)
@@ -257,8 +283,18 @@ class ExtractLayoutMayaFile(publish.Extractor):
             if "representations" not in instance.data:
                 instance.data["representations"] = []
 
+            # Set the publish back to multi layout, and all publish instances back to
+            # the original task
+
             cmds.setAttr(_layoutPublishSet+".creator_identifier","io.openpype.creators.maya.multishotlayout",type="string")
             cmds.setAttr(_layoutPublishSet+".family","layout_multi",type="string")
+            for _set in _allSets:
+                cmds.setAttr(_set+".task",_preExportTask,type="string")
+
+                # If its an animation publish set its folder path to the shot
+                if cmds.getAttr(_set+".creator_identifier") in  ["io.openpype.creators.maya.animation"]:
+                    cmds.setAttr(_set+".folderPath",_preExportFolderPath,type="string")
+                    cmds.setAttr(_set+".active",False)
 
             representation = {
                 'name': self.scene_type,

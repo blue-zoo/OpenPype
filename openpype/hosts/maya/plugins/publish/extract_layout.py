@@ -39,7 +39,7 @@ class ExtractLayout(publish.Extractor):
             if len(container_list) == 0:
                 self.log.warning("Project container is not found!")
                 self.log.warning("The asset(s) may not be properly loaded after published") # noqa
-                continue
+                #continue
 
             grp_loaded_ass = instance.data.get("groupLoadedAssets", False)
             if grp_loaded_ass:

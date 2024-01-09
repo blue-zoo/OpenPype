@@ -184,7 +184,7 @@ class CreateMultishotLayout(plugin.MayaCreator):
                         et=shot["attrib"]["clipOut"],
                         shotName=shot_name)
                 _shotNode = cmds.rename(_shotNode,shot_name)
-                cmds.addAttr(_shotNode, longName='shotNode', attributeType='message' )
+                cmds.addAttr(_shotNode, longName='__shotNode', attributeType='message' )
 
             else:
                 _shotNode = _existingShot[0]
@@ -237,8 +237,8 @@ class CreateMultishotLayout(plugin.MayaCreator):
                 )
                 _layoutPublishSet=_publishLayoutInstance.get("instance_node")
 
-                cmds.addAttr(_layoutPublishSet, longName='shotNode', attributeType='message' )
-                cmds.addAttr(_layoutPublishSet, longName='cameraSet', attributeType='message' )
+                cmds.addAttr(_layoutPublishSet, longName='__shotNode', attributeType='message' )
+                cmds.addAttr(_layoutPublishSet, longName='__cameraSet', attributeType='message' )
 
             else:
                 _layoutPublishSet = _existingLayoutSubset[0].split(".")[0]
@@ -256,18 +256,18 @@ class CreateMultishotLayout(plugin.MayaCreator):
                 cmds.setAttr(_cameraPublishSet+".handleEnd",shot["attrib"]["handleEnd"])
                 cmds.setAttr(_cameraPublishSet+".shiftSequenceAmimation",True)
 
-                cmds.addAttr(_cameraPublishSet, longName='cameraSet', attributeType='message' )
+                cmds.addAttr(_cameraPublishSet, longName='__cameraSet', attributeType='message' )
 
             else:
                 _cameraPublishSet = _existingCameraSubset[0].split(".")[0]
 
-            conns = cmds.listConnections(_shotNode+".shotNode",p=True,s=0,d=1) or []
-            if not _layoutPublishSet+".shotNode" in conns:
-                cmds.connectAttr(_shotNode+".shotNode",_layoutPublishSet+".shotNode",force=True)
+            conns = cmds.listConnections(_shotNode+".__shotNode",p=True,s=0,d=1) or []
+            if not _layoutPublishSet+".__shotNode" in conns:
+                cmds.connectAttr(_shotNode+".__shotNode",_layoutPublishSet+".__shotNode",force=True)
 
-            conns = cmds.listConnections(_layoutPublishSet+".cameraSet",p=True,s=0,d=1) or []
-            if not _cameraPublishSet+".cameraSet" in conns:
-                cmds.connectAttr(_layoutPublishSet+".cameraSet",  _cameraPublishSet+".cameraSet",force=True)
+            conns = cmds.listConnections(_layoutPublishSet+".__cameraSet",p=True,s=0,d=1) or []
+            if not _cameraPublishSet+".__cameraSet" in conns:
+                cmds.connectAttr(_layoutPublishSet+".__cameraSet",  _cameraPublishSet+".__cameraSet",force=True)
 
 
     def get_related_shots(self, folder_path: str):

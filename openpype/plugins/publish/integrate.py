@@ -94,6 +94,7 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
                 "mayaScene",
                 "setdress",
                 "layout",
+                "layout_multi",
                 "ass",
                 "vdbcache",
                 "scene",

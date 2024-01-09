@@ -38,6 +38,22 @@ class ValidateInstanceInContext(pyblish.api.InstancePlugin,
         if not self.is_active(instance.data):
             return
 
+        # Multiple Layout publishes going on in layout breakout.
+        if instance.data.get("task") == 'Layout':
+            return
+
+        _allSets = cmds.ls("*.creator_identifier", long=True, type="objectSet", recursive=True,
+                        objectsOnly=True) or []
+        _RigSets = [s for s in _allSets if cmds.getAttr(s+".creator_identifier") in  ["io.openpype.creators.maya.rig"] ]
+        _staticProxyMeshSets = [s for s in _allSets if cmds.getAttr(s+".creator_identifier") in  ["io.openpype.creators.maya.unreal_maya_placeholder"] ]
+
+
+        # There is a static proxy and a rig Set
+        if _RigSets and _staticProxyMeshSets:
+            if "Environments" in instance.data.get("assetEntity",{}).get("data",{}).get("parents",[]):
+                self.log.info("Skipping Instance / context check")
+                return
+
         asset = instance.data.get("asset")
         context_asset = self.get_context_asset(instance)
         if asset != context_asset:

@@ -148,6 +148,11 @@ class MayaCreatorBase(object):
         return []
 
     def imprint_instance_node(self, node, data):
+        # Remove the uneeded keys
+        to_remove = [k for k in data if k.startswith("__") and k != "__creator_attributes_keys"]
+        for f in to_remove:
+            del data[f]
+
 
         # We never store the instance_node as value on the node since
         # it's the node name itself
@@ -206,6 +211,10 @@ class MayaCreatorBase(object):
         # Never care about a cbId attribute on the object set
         # being read as 'data'
         node_data.pop("cbId", None)
+        # Remove the attributes starting with "__"
+        to_remove = [k for k in node_data if k.startswith("__") and k != "__creator_attributes_keys" ]
+        for f in to_remove:
+            del node_data[f]
 
         # Make sure we convert any creator attributes from the json string
         creator_attributes = node_data.get("creator_attributes")

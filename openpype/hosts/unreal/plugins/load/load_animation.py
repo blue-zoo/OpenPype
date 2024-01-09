@@ -243,7 +243,7 @@ class AnimationFBXLoader(plugin.Loader):
                         startFrame = context.get("version").get("data").get("frameStart")
                         endFrame = context.get("version").get("data").get("frameEnd")
 
-                        s.set_range(startFrame,endFrame)
+                        s.set_range(startFrame,endFrame+1)
 
 
 
