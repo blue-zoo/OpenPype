@@ -119,6 +119,9 @@ class LookLoader(openpype.hosts.maya.api.plugin.ReferenceLoader):
             nodes_by_id[lib.get_id(node)].append(node)
         lib.apply_attributes(attributes, nodes_by_id)
 
+        # Try to connect attributes from rig to shader nodes
+        lib.make_rig_to_shader_connections(nodes, shader_nodes)
+
     def _get_nodes_with_shader(self, shader_nodes):
         """
             Returns list of nodes belonging to specific shaders
