@@ -173,7 +173,7 @@ class LayoutLoader(plugin.Loader):
         MAYA_TO_UNREAL__X[3] )
 
         new_transform = (
-            MAYA_TO_UNREAL_MATRIX * MAYA_TO_UNREAL_X_MATRIX* basis_matrix.get_inverse() *  transform_matrix * basis_matrix )
+            MAYA_TO_UNREAL_MATRIX * basis_matrix.get_inverse() *  transform_matrix * basis_matrix )
 
         return new_transform.transform()
 
@@ -603,6 +603,8 @@ class LayoutLoader(plugin.Loader):
         suffix = "_CON"
         asset_name = f"{asset}_{name}" if asset else name
         tools = unreal.AssetToolsHelpers().get_asset_tools()
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+
         asset_dir, container_name = tools.create_unique_asset_name(
             "{}/{}/{}".format(hierarchy_dir, asset, name), suffix="")
 
@@ -612,9 +614,13 @@ class LayoutLoader(plugin.Loader):
         master_level = None
         shot = None
         sequences = []
-
         level = f"{asset_dir}/{asset}_map.{asset}_map"
-        EditorLevelLibrary.new_level(f"{asset_dir}/{asset}_map")
+
+        if not EditorAssetLibrary.does_asset_exist(level):
+            EditorLevelLibrary.new_level(level)
+
+        level_data = EditorAssetLibrary.find_asset_data(level)
+        level_asset = level_data.get_asset()
         if create_sequences:
             # Create map for the shot, and create hierarchy of map. If the
             # maps already exist, we will use them.
@@ -625,15 +631,26 @@ class LayoutLoader(plugin.Loader):
                 if not EditorAssetLibrary.does_asset_exist(master_level):
                     EditorLevelLibrary.new_level(f"{h_dir}/{h_asset}_map")
 
+            # If there is a level sequence of all levels
             if master_level:
                 EditorLevelLibrary.load_level(master_level)
-                EditorLevelUtils.add_level_to_world(
-                    EditorLevelLibrary.get_editor_world(),
-                    level,
-                    unreal.LevelStreamingDynamic
-                )
-                EditorLevelLibrary.save_all_dirty_levels()
-                EditorLevelLibrary.load_level(level)
+                added_levels = EditorLevelUtils.get_levels( EditorLevelLibrary.get_editor_world() )
+
+                # Go through all the master level children and check that that level is added
+                obj = ar.get_asset_by_object_path(level)
+                level_obj = obj.get_asset()
+                level_added = False
+                for a in added_levels:
+
+                    if a.get_path_name().split(":")[0] == level_obj.get_path_name():
+                        level_added = True
+
+                if not level_added:
+                    EditorLevelUtils.add_level_to_world(
+                        EditorLevelLibrary.get_editor_world(),
+                        level,
+                        unreal.LevelStreamingDynamic
+                    )
 
             # Get all the sequences in the hierarchy. It will create them, if
             # they don't exist.
@@ -659,7 +676,7 @@ class LayoutLoader(plugin.Loader):
                         sequences.append(e.get_asset())
                         frame_ranges.append((
                             e.get_asset().get_playback_start(),
-                            e.get_asset().get_playback_end()))
+                            e.get_asset().get_playback_end()+1))
 
             # FIXME -  Get Current LevelSequence objects and check if already present
             # DONE

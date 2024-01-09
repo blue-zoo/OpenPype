@@ -534,6 +534,7 @@ def set_sequence_hierarchy(
             visibility_track = t
     if not subscene_track:
         subscene_track = seq_i.add_master_track(unreal.MovieSceneSubTrack)
+
     if not visibility_track:
         visibility_track = seq_i.add_master_track(
             unreal.MovieSceneLevelVisibilityTrack)
@@ -549,9 +550,9 @@ def set_sequence_hierarchy(
         subscene = subscene_track.add_section()
         subscene.set_row_index(len(subscene_track.get_sections()))
         subscene.set_editor_property('sub_sequence', seq_j)
-        subscene.set_range(
-            min_frame_j,
-            max_frame_j + 1)
+    subscene.set_range(
+        min_frame_j,
+        max_frame_j + 1)
 
     # Create the visibility section
     ar = unreal.AssetRegistryHelpers.get_asset_registry()
@@ -562,37 +563,68 @@ def set_sequence_hierarchy(
         unreal.EditorLevelLibrary.load_level(m)
         maps.append(str(ar.get_asset_by_object_path(m).asset_name))
 
-    vis_section = visibility_track.add_section()
+    visibility_track.get_sections()
+
+
+    vis_sections = [s for s in visibility_track.get_sections() if s.get_level_names() == maps]
+    vis_sections.sort( key=lambda x: x.get_end_frame() )
+
+    vis_section_pre_vis_created = False
+    vis_section_vis_created = False
+    vis_section_post_vis_created = False
+
+    if len(vis_sections) == 3:
+        vis_section_pre_vis = vis_sections[0]
+        vis_section_vis = vis_sections[1]
+        vis_section_post_vis = vis_sections[2]
+
+
+
+    elif min_frame_j > 1 and max_frame_j < max_frame_i:
+        vis_section_pre_vis = visibility_track.add_section()
+        vis_section_vis = visibility_track.add_section()
+        vis_section_post_vis = visibility_track.add_section()
+        vis_section_pre_vis_created = True
+        vis_section_vis_created = True
+        vis_section_post_vis_created = True
+
+    else:
+        vis_section_vis = visibility_track.add_section()
+        vis_section_vis_created = True
+
+
     index = len(visibility_track.get_sections())
 
-    vis_section.set_range(
+    vis_section_vis.set_range(
         min_frame_j,
         max_frame_j + 1)
-    vis_section.set_visibility(unreal.LevelVisibility.VISIBLE)
-    vis_section.set_row_index(index)
-    vis_section.set_level_names(maps)
+    vis_section_vis.set_visibility(unreal.LevelVisibility.VISIBLE)
+    if vis_section_vis_created:
+        vis_section_vis.set_row_index(index)
+        vis_section_vis.set_level_names(maps)
 
     if min_frame_j > 1:
-        hid_section = visibility_track.add_section()
-        hid_section.set_range(
+        vis_section_post_vis.set_range(
             1,
             min_frame_j)
-        hid_section.set_visibility(unreal.LevelVisibility.HIDDEN)
-        hid_section.set_row_index(index)
-        hid_section.set_level_names(maps)
+        vis_section_post_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        if vis_section_post_vis_created:
+            vis_section_post_vis.set_row_index(index)
+            vis_section_post_vis.set_level_names(maps)
     if max_frame_j < max_frame_i:
-        hid_section = visibility_track.add_section()
-        hid_section.set_range(
+        vis_section_pre_vis.set_range(
             max_frame_j + 1,
             max_frame_i + 1)
-        hid_section.set_visibility(unreal.LevelVisibility.HIDDEN)
-        hid_section.set_row_index(index)
-        hid_section.set_level_names(maps)
+        vis_section_pre_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        if vis_section_pre_vis_created:
+            vis_section_pre_vis.set_row_index(index)
+            vis_section_pre_vis.set_level_names(maps)
 
 
 def generate_sequence(h, h_dir):
     tools = unreal.AssetToolsHelpers().get_asset_tools()
-
+    print("h",h)
+    print("h_dir",h_dir)
     sequence = tools.create_asset(
         asset_name=h,
         package_path=h_dir,

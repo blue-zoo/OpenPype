@@ -44,20 +44,19 @@ class ExtractFBX(publish.Extractor):
         if instance.data.get("family") == "camera" and instance.data.get("shiftSequenceAmimation"):
             _shotStartFrame = instance.data.get("assetEntity").get("data").get("frameStart")
             _cameraPublishSet = instance.data.get("instance_node")
-            _layoutPublishSets = cmds.listConnections(_cameraPublishSet+".cameraSet",s=1,d=0) or []
-            _layoutShotNodes = cmds.listConnections(_layoutPublishSets[0]+".shotNode",s=1,d=0) or []
+            _layoutPublishSets = cmds.listConnections(_cameraPublishSet+".__cameraSet",s=1,d=0) or []
+            _layoutShotNodes = cmds.listConnections(_layoutPublishSets[0]+".__shotNode",s=1,d=0) or []
             _shotNodeSequenceStartFrame = cmds.shot(_layoutShotNodes[0],sequenceStartTime=True,query=True)
 
             _timeOffset = float(_shotStartFrame) - float(_shotNodeSequenceStartFrame)
             _timeOffsetInv = _timeOffset*-1
             self.log.info('Offsetting {s} by {f}'.format(s= instance.data.get("name") ,f=_timeOffset))
             offsetAllKeys(_timeOffset)
-            self.log.info('Resetting {s} by {f}'.format(s= instance.data.get("name") ,f=_timeOffsetInv))
-            offsetAllKeys(_timeOffsetInv)
             cmds.setAttr(_cameraPublishSet+".shiftSequenceAmimation",False)
 
 
         # Export
+        self.log.info('Exporting Shot Members to "{p}"'.format(p= path))
         with maintained_selection():
             fbx_exporter.export(members, path)
             cmds.select(members, r=1, noExpand=True)
@@ -75,6 +74,10 @@ class ExtractFBX(publish.Extractor):
         instance.data["representations"].append(representation)
 
         self.log.info("Extract FBX successful to: {0}".format(path))
+        if instance.data.get("family") == "camera" and instance.data.get("shiftSequenceAmimation"):
+            cmds.setAttr(_cameraPublishSet+".shiftSequenceAmimation",True)
+            self.log.info('Resetting {s} by {f}'.format(s= instance.data.get("name") ,f=_timeOffsetInv))
+            offsetAllKeys(_timeOffsetInv)
 
 
 def offsetAllKeys( offset, includeReferenced=False):
