@@ -43,7 +43,10 @@ class ExtractRig(publish.Extractor):
         # Perform extraction
         self.log.info("Performing extraction ...")
         with maintained_selection():
-            cmds.select(instance, noExpand=True)
+            # since we deleted the `realtime_out_SET` and the contents
+            # of the `joints_SET`, there's now nodes in the instance
+            # that don't exist, hence the `objExists`
+            cmds.select([x for x in instance if cmds.objExists(x)], noExpand=True)
             cmds.file(path,
                       force=True,
                       typ="mayaAscii" if self.scene_type == "ma" else "mayaBinary",  # noqa: E501
@@ -78,9 +81,6 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
 
     def process(self, instance):
 
-        # Do the rig export prior to the publishing
-        super().process(instance)
-
         _oldFile = cmds.file(q=1,sn=1)
 
         fbx_exporter = fbx.FBXExtractor(log=self.log)
@@ -92,10 +92,10 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
 
 
         set_members =  instance.data.get("setMembers",[])
-        geo = [s for s in set_members if s.endswith("out_SET")]
+        geo = [s for s in set_members if s.endswith("realtime_out_SET")]
         joints = [s for s in set_members if s.endswith("joints_SET")]
         if not len(joints) == 1 or not len(geo) == 1:
-            self.log.info('No "joints_SET" or "out_SET detected')
+            self.log.info('No "joints_SET" or "realtime_out_SET detected')
             return
 
 
@@ -140,6 +140,61 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
         instance.data["representations"].append(representation)
 
         self.log.info("Extract FBX successful to: {0}".format(path))
+
+        # Reopen
+        cmds.file(_oldFile, open=True,force=True)
+
+        # Extract realtime .ma rig
+        # We don't need the _realtime_out_SET, as that's only for the FBX
+        if cmds.objExists(instance.name + '_realtime_out_SET'):
+            cmds.delete(cmds.sets(instance.name + '_realtime_out_SET', q=1))
+
+        # Define extract output file path
+        dir_path = self.staging_dir(instance)
+        filename = "{0}.{1}".format(instance.name + '_realtime', 'mb')
+        path = os.path.join(dir_path, filename)
+
+        # Perform extraction
+        self.log.info("Performing extraction ...")
+        with maintained_selection():
+            # since we deleted the `realtime_out_SET`, there's now nodes
+            # in the instance that don't exist, hence the `objExists`
+            cmds.select([x for x in instance if cmds.objExists(x)], noExpand=True)
+            cmds.file(path,
+                      force=True,
+                      # NOTE temporarily exporing as a binary file as the realtime
+                      # representation, as just adding realtime to the name and
+                      # doing an ascii important fails saying there already is
+                      # a transaction for the same representation. TODO
+                      typ="mayaBinary",  # noqa: E501
+                      exportSelected=True,
+                      preserveReferences=False,
+                      channels=True,
+                      constraints=True,
+                      expressions=True,
+                      constructionHistory=True)
+
+        if "representations" not in instance.data:
+            instance.data["representations"] = []
+
+        representation = {
+            'name': 'realtime_mb',
+            'ext': 'mb',
+            'files': filename,
+            "stagingDir": dir_path
+        }
+        instance.data["representations"].append(representation)
+
+        self.log.info("Extracted instance '%s' to: %s" % (instance.name, path))
+
+        # Finally, before exporting the anim rig, delete the contents of the joints_SET as well
+        if cmds.objExists(instance.name + '_joints_SET'):
+            joints_set_contents = cmds.sets(instance.name + '_joints_SET', q=1)
+            cmds.sets(cl=instance.name + '_joints_SET')
+            cmds.delete(joints_set_contents)
+
+        # Do the anim rig export
+        super().process(instance)
 
         # Reopen
         cmds.file(_oldFile, open=True,force=True)
