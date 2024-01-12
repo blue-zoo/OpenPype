@@ -164,7 +164,7 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
                       force=True,
                       # NOTE temporarily exporing as a binary file as the realtime
                       # representation, as just adding realtime to the name and
-                      # doing an ascii important fails saying there already is
+                      # doing an ascii export fails saying there already is
                       # a transaction for the same representation. TODO
                       typ="mayaBinary",  # noqa: E501
                       exportSelected=True,
