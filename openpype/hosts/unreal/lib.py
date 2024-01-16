@@ -342,7 +342,12 @@ def get_compatible_integration(
             version.
 
     """
-    major, minor = ue_version.split(".")
+    ue_version = ue_version.replace(" Development Stream","")
+    #raise Exception(ue_version+str(type(ue_version))+str( ue_version.split(".")))
+
+    version_parts = ue_version.split(".")
+    major = version_parts[0]
+    minor = version_parts[1]
     integration_paths = [p for p in integration_root.iterdir()
                          if p.is_dir()]
 
@@ -368,6 +373,7 @@ def get_compatible_integration(
 
 
 def get_path_to_cmdlet_project(ue_version: str) -> Path:
+
     cmd_project = Path(
         os.path.dirname(os.path.abspath(__file__)))
 

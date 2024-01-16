@@ -28,8 +28,8 @@ class UnrealAddon(OpenPypeModule, IHostAddon):
         from openpype.widgets.message_window import Window
 
         pattern = re.compile(r'^\d+-\d+$')
-
-        if not pattern.match(app.name):
+        app_name = app.name.replace("-Dev-Stream","")
+        if not pattern.match(app_name):
             msg = (
                 "Unreal application key in the settings must be in format"
                 "'5-0' or '5-1'"
@@ -41,7 +41,7 @@ class UnrealAddon(OpenPypeModule, IHostAddon):
                 level="critical")
             raise ValueError(msg)
 
-        ue_version = app.name.replace("-", ".")
+        ue_version = app_name.replace("-", ".")
         unreal_plugin_path = os.path.join(
             UNREAL_ROOT_DIR, "integration", "UE_{}".format(ue_version), "Ayon"
         )

@@ -147,6 +147,12 @@ class UnrealPrelaunchHook(PreLaunchHook):
     def execute(self):
         """Hook entry method."""
         workdir = self.launch_context.env["AVALON_WORKDIR"]
+        # Override with local work file
+        workdir = os.path.expanduser('~')
+        workdir = os.path.join(workdir,"unrealProjects")
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+
         executable = str(self.launch_context.executable)
         engine_version = self.app_name.split("/")[-1].replace("-", ".")
         try:
@@ -169,6 +175,11 @@ class UnrealPrelaunchHook(PreLaunchHook):
             raise ApplicationLaunchFailed(
                 f"Project name exceeds 20 characters ({unreal_project_name})!"
             )
+        # If dev stream is selected move to another file name
+        use_dev_stream = self.launch_context.env.get("PERFORCE_STREAM",None)
+        if use_dev_stream == "dev":
+            unreal_project_name+="_dev"
+
 
         # Unreal doesn't accept non alphabet characters at the start
         # of the project name. This is because project name is then used

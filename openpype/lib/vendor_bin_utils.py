@@ -500,6 +500,7 @@ def get_ffmpeg_tool_args(tool_name, *extra_args):
 
     if AYON_SERVER_ENABLED:
         args = _get_ayon_ffmpeg_tool_args(tool_name)
+        print("GOT ARGS ",args)
         if args:
             return args + extra_args
 
