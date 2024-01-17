@@ -155,6 +155,7 @@ class UnrealPrelaunchHook(PreLaunchHook):
 
         executable = str(self.launch_context.executable)
         engine_version = self.app_name.split("/")[-1].replace("-", ".")
+        engine_version = engine_version.replace(".Dev.Stream","")
         try:
             if int(engine_version.split(".")[0]) < 4 and \
                     int(engine_version.split(".")[1]) < 26:
