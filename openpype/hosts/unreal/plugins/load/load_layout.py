@@ -183,6 +183,7 @@ class LayoutLoader(plugin.Loader):
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         actors = []
         bindings = []
+        skeletal_mesh = None
         for asset in assets:
             obj = ar.get_asset_by_object_path(asset).get_asset()
             if obj.get_class().get_name() == class_name:
@@ -208,12 +209,14 @@ class LayoutLoader(plugin.Loader):
                     skm_comp = actor.get_editor_property(
                         'skeletal_mesh_component')
                     skm_comp.set_bounds_scale(10.0)
+                    skeletal_mesh = actor
                 actors.append(actor)
 
                 if sequence:
                     binding = None
                     for p in sequence.get_possessables():
                         if p.get_name() == actor.get_name():
+                            # NOTE: this does nothing, as the binding name is never that of the actor?
                             binding = p
                             break
 
@@ -221,6 +224,83 @@ class LayoutLoader(plugin.Loader):
                         binding = sequence.add_possessable(actor)
 
                     bindings.append(binding)
+
+        if skeletal_mesh:
+            # Check if there are any blueprints in the Asset root folder
+            # (that's the folder that contains the version folders)
+            skeleton_parent_path = unreal.Paths.get_path(unreal.Paths.get_path(asset))
+            blueprints_in_skeleton_parent_path = unreal.AssetRegistryHelpers.\
+                get_blueprint_assets(unreal.ARFilter(
+                    package_paths=[skeleton_parent_path]))
+
+            # NOTE: worth considering whether we should do anything if there's
+            # not blueprints in the path, as if that's the case, but there's
+            # some attached actors, there's an argument to be made to
+            # unattach and destroy those actors, as they are _likely_ coming
+            # from blueprints that have been moved outside of the correct path,
+            # but there is a chance that those are legitimate actors that
+            # have been attached to the skeletal mesh.
+            if blueprints_in_skeleton_parent_path:
+                # If there are blueprints we want to attach them to the skeletal mesh
+                for bp_asset_data in blueprints_in_skeleton_parent_path:
+                    # Check if a blueprint of this type is already attached as
+                    # rebuilding the layout doesn't remove existing assets and
+                    # readd them, but it uses the existing instances
+                    bp_already_attached = False
+                    for child in skeletal_mesh.get_attached_actors():
+                        if child.get_class().get_class_path_name().package_name\
+                                == bp_asset_data.package_name:
+                            bp_already_attached = True
+                            break
+
+                    # The attach socket is taken from the name of the blueprint
+                    # like so: BP_{AssetName}_{SocketName}
+                    asset_name = unreal.Paths.get_base_filename(skeleton_parent_path)
+                    bp_tokens = str(bp_asset_data.asset_name).split(asset_name+'_',1)
+                    if len(bp_tokens) != 2:
+                        self.log.warning(f'Blueprint {bp_asset_data.package_name} '
+                                          'has the wrong naming convention, so '
+                                          'it is not being instantiated.')
+                        continue
+                    socket_name = bp_tokens[-1]
+
+                    if bp_already_attached:
+                        # If a blueprint of this type is attached, first
+                        # ensure it's added to the sequence
+                        if sequence:
+                            bindings.append(sequence.add_possessable(child))
+                        actors.append(child)
+
+                        # Then ensure it's attached to the correct socket
+                        attached_to_socket_name = str(child.get_attach_parent_socket_name())
+                        if socket_name != attached_to_socket_name:
+                            child.detach_from_actor()
+                            child.attach_to_actor(skeletal_mesh,
+                                socket_name=socket_name,
+                                location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                                rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                                scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
+
+                        # Carry on without creating a new blueprint instance
+                        continue
+
+                    # Create actor of the specified blueprint type
+                    skeleton_bp_actor = EditorLevelLibrary.spawn_actor_from_object(
+                        bp_asset_data.get_asset(), unreal.Vector())
+
+                    # Attach it to our skeletal mesh by snapping
+                    skeleton_bp_actor.attach_to_actor(skeletal_mesh,
+                        socket_name=socket_name,
+                        location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                        rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                        scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
+
+                    # Add blueprint to sequence and store it in actors and bindings,
+                    # even though they are only needed for importing animation
+                    # which this blueprint will never have
+                    actors.append(skeleton_bp_actor)
+                    if sequence:
+                        bindings.append(sequence.add_possessable(skeleton_bp_actor))
 
         return actors, bindings
 
