@@ -266,12 +266,7 @@ class LayoutLoader(plugin.Loader):
 
                     if bp_already_attached:
                         # If a blueprint of this type is attached, first
-                        # ensure it's added to the sequence
-                        if sequence:
-                            bindings.append(sequence.add_possessable(child))
-                        actors.append(child)
-
-                        # Then ensure it's attached to the correct socket
+                        # ensure it's attached to the correct socket
                         attached_to_socket_name = str(child.get_attach_parent_socket_name())
                         if socket_name != attached_to_socket_name:
                             child.detach_from_actor()
@@ -280,6 +275,25 @@ class LayoutLoader(plugin.Loader):
                                 location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
                                 rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
                                 scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
+
+                            old_label = child.get_actor_label()
+                            new_label = str(old_label).replace(
+                                attached_to_socket_name, socket_name)
+
+                            child.rename(new_label)
+                            child.set_actor_label(new_label)
+
+                            if sequence:
+                                # Remove old binding if it exists
+                                old_binding = sequence.find_binding_by_name(old_label)
+                                if old_binding.is_valid():
+                                    old_binding.remove()
+
+                        # Then ensure it's added to the sequence
+                        if sequence:
+                            bindings.append(sequence.add_possessable(child))
+
+                        actors.append(child)
 
                         # Carry on without creating a new blueprint instance
                         continue
