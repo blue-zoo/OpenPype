@@ -258,10 +258,27 @@ class LayoutLoader(plugin.Loader):
                     asset_name = unreal.Paths.get_base_filename(skeleton_parent_path)
                     bp_tokens = str(bp_asset_data.asset_name).split(asset_name+'_',1)
                     if len(bp_tokens) != 2:
+                        if bp_already_attached:
+                            self.log.warning(f'Blueprint {bp_asset_data.package_name} '
+                                            'has the wrong naming convention, so '
+                                            'it is being removed from the layout.')
+
+                            if sequence:
+                                binding = sequence.find_binding_by_name(
+                                    child.get_actor_label())
+                                if binding.is_valid():
+                                    binding.remove()
+
+                            child.detach_from_actor()
+                            child.destroy_actor()
+
+                            continue
+
                         self.log.warning(f'Blueprint {bp_asset_data.package_name} '
                                           'has the wrong naming convention, so '
                                           'it is not being instantiated.')
                         continue
+
                     socket_name = bp_tokens[-1]
 
                     if bp_already_attached:
