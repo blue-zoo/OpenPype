@@ -226,12 +226,11 @@ class LayoutLoader(plugin.Loader):
                     bindings.append(binding)
 
         if skeletal_mesh:
-            # Check if there are any blueprints in the Asset root folder
-            # (that's the folder that contains the version folders)
-            skeleton_parent_path = unreal.Paths.get_path(unreal.Paths.get_path(asset))
-            blueprints_in_skeleton_parent_path = unreal.AssetRegistryHelpers.\
+            # Check if there are any blueprints in the Asset version folder
+            skeleton_path = unreal.Paths.get_path(asset)
+            blueprints_in_skeleton_path = unreal.AssetRegistryHelpers.\
                 get_blueprint_assets(unreal.ARFilter(
-                    package_paths=[skeleton_parent_path]))
+                    package_paths=[skeleton_path]))
 
             # NOTE: worth considering whether we should do anything if there's
             # not blueprints in the path, as if that's the case, but there's
@@ -240,9 +239,9 @@ class LayoutLoader(plugin.Loader):
             # from blueprints that have been moved outside of the correct path,
             # but there is a chance that those are legitimate actors that
             # have been attached to the skeletal mesh.
-            if blueprints_in_skeleton_parent_path:
+            if blueprints_in_skeleton_path:
                 # If there are blueprints we want to attach them to the skeletal mesh
-                for bp_asset_data in blueprints_in_skeleton_parent_path:
+                for bp_asset_data in blueprints_in_skeleton_path:
                     # Check if a blueprint of this type is already attached as
                     # rebuilding the layout doesn't remove existing assets and
                     # readd them, but it uses the existing instances
@@ -255,7 +254,8 @@ class LayoutLoader(plugin.Loader):
 
                     # The attach socket is taken from the name of the blueprint
                     # like so: BP_{AssetName}_{SocketName}
-                    asset_name = unreal.Paths.get_base_filename(skeleton_parent_path)
+                    asset_name = unreal.Paths.get_base_filename(
+                        unreal.Paths.get_path(skeleton_path))
                     bp_tokens = str(bp_asset_data.asset_name).split(asset_name+'_',1)
                     if len(bp_tokens) != 2:
                         if bp_already_attached:
