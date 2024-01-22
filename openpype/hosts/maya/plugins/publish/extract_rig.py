@@ -120,6 +120,51 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
 
         # we rely on hierarchy under one root.
 
+        # Assign realtime shaders before publishing FBX, so we get the
+        # correct material slots in UE
+        # NOTE TODO: Annoyingly, the lib.assign_look seems to flat out not work?
+        # so i've copied the contents of it here and made the changes to get
+        # it to work. Ideally, i'd like fix the function and just use it here
+        from openpype.client import (
+            get_project,
+            get_asset_by_name,
+            get_subsets,
+            get_last_versions,
+            get_representation_by_name
+        )
+        from openpype.hosts.maya.api import lib
+        from openpype.pipeline.context_tools import get_current_project_name
+
+        realtime_trns = [g for s in geo for g in cmds.sets(s, q=1)]
+        realtime_mesh_nodes = sum([cmds.listRelatives(trn,ad=1,typ='mesh',f=1)
+                                  for trn in realtime_trns], [])
+        group_id = None
+        for node in realtime_mesh_nodes:
+            pype_id = lib.get_id(node)
+            if pype_id:
+                group_id = pype_id.split(':',1)[0]
+                break
+        if group_id is None:
+            raise RuntimeError('Could not identify mesh nodes in realtime_out_SET.')
+
+        project_name = get_current_project_name()
+        subset_docs = get_subsets(
+            project_name, subset_names=['lookRealtime'], asset_ids=[group_id])
+        # NOTE: dont know why but the conversion to list is important
+        subset_docs = [x for x in subset_docs]
+        subset_docs_by_asset_id = {str(subset_doc["parent"]): subset_doc
+                                   for subset_doc in subset_docs}
+        last_version_docs = get_last_versions(
+            project_name,
+            subset_ids=[doc["_id"] for doc in subset_docs],
+            fields=["_id", "name", "data.families"])
+
+        if last_version_docs:
+            lib.assign_look_by_version(realtime_mesh_nodes,
+                list(last_version_docs.values())[0]['_id'])
+            print('Assigning latest realtime shaders for fbx export.')
+        # end of assign look
+
         # Export
         with maintained_selection():
             to_extract = [g for s in to_extract for g in cmds.sets(s, q=1)]
