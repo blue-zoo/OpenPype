@@ -147,9 +147,9 @@ class BrickDirectory(object):
         return '{}|Brick_{}_{}|Part_{}_{}'.format(
             self.group,
             '*' if wildcard else part.brick.designID.split(';')[0],
-            '*' if wildcard else part.brick.refID,
+            '*' if wildcard else part.brick.mayaIdentifier,
             part.designID.split(';')[0],
-            '*' if wildcard else part.refID,
+            '*' if wildcard else part.mayaIdentifier,
         )
 
     def importBrickPart(self, part, useInstances=True, updateUVs=True, deleteColourSets=True,
@@ -323,28 +323,37 @@ class BrickDirectory(object):
         # Add/set brick attributes
         if grpCreated:
             mc.addAttr(grpName, longName='LEGO_UUID', dataType='string')
-            mc.addAttr(grpName, longName='LEGO_refID', attributeType='long')
             mc.addAttr(grpName, longName='LEGO_designID', attributeType='long')
-            mc.setAttr(grpName + '.LEGO_UUID', part.brick.uuid, type='string')
-            mc.setAttr(grpName + '.LEGO_refID', int(part.brick.refID))
             mc.setAttr(grpName + '.LEGO_designID', int(part.brick.designID.split(';')[0]))
+            mc.setAttr(grpName + '.LEGO_UUID', part.brick.uuid, type='string')
+
+            if part.version < 8:
+                mc.addAttr(grpName, longName='LEGO_refID', attributeType='long')
+                mc.setAttr(grpName + '.LEGO_refID', int(part.brick.refID))
 
         # Set correct node name
         mc.rename(grpName + '|' + newNode, grpItem)
 
         if not isInstance:
             # Add custom attributes to store data
-            mc.addAttr(brickName, longName='LEGO_refID', attributeType='long')
             mc.addAttr(brickName, longName='LEGO_designID', attributeType='long')
             mc.addAttr(brickName, longName='LEGO_materialIDs', dataType='string')
             mc.addAttr(brickName, longName='LEGO_decoration', dataType='string')
             # mc.addAttr(brickName, longName='LEGO_transformation', attributeType='fltMatrix')
 
+            if part.version >= 8:
+                mc.addAttr(brickName, longName='LEGO_UUID', dataType='string')
+            else:
+                mc.addAttr(brickName, longName='LEGO_refID', attributeType='long')
+
         # Set custom attributes
-        mc.setAttr(brickName + '.LEGO_refID', int(part.refID))
         mc.setAttr(brickName + '.LEGO_designID', int(part.designID.split(';')[0]))
         mc.setAttr(brickName + '.LEGO_materialIDs', ','.join(mat.split(':')[0] for mat in part.materials.split(',')), type='string')
         mc.setAttr(brickName + '.LEGO_decoration', part.decoration or '', type='string')
+        if part.version >= 8:
+            mc.setAttr(brickName + '.LEGO_UUID', part.uuid, type='string')
+        else:
+            mc.setAttr(brickName + '.LEGO_refID', int(part.refID))
 
         # Apply transformation matrix
         setMatrix(brickName, part.matrix)
@@ -497,7 +506,7 @@ def setupScene(xmlPath, brickDirectory, **kwargs):
 
                 result = brickDirectory.importBrickPart(part, **kwargs)
                 if result['success']:
-                    nodes[brick.refID][part.refID] = result['node']
+                    nodes[brick.mayaIdentifier][part.mayaIdentifier] = result['node']
                 else:
                     exc.append('Brick {}: {}'.format(part.designID.split(';')[0], result['message']))
 
@@ -511,8 +520,8 @@ def setupScene(xmlPath, brickDirectory, **kwargs):
             selectionSetName = selectionSet.name
             if not mc.objExists(selectionSetName):
                 selectionSetName = mc.sets([], name=selectionSetName)
-            bricks = [next(iter(nodes[brick.refID].values())).rsplit('|', 1)[0] for brick in selectionSet.bricks
-                      if brick.refID in nodes]
+            bricks = [next(iter(nodes[brick.mayaIdentifier].values())).rsplit('|', 1)[0] for brick in selectionSet.bricks
+                      if brick.mayaIdentifier in nodes]
             mc.sets(bricks, add=selectionSetName)
 
         # Clear any new unknown plugins
