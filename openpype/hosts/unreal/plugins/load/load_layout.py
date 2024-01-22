@@ -239,99 +239,88 @@ class LayoutLoader(plugin.Loader):
             # from blueprints that have been moved outside of the correct path,
             # but there is a chance that those are legitimate actors that
             # have been attached to the skeletal mesh.
-            if blueprints_in_skeleton_path:
-                # If there are blueprints we want to attach them to the skeletal mesh
-                for bp_asset_data in blueprints_in_skeleton_path:
-                    # Check if a blueprint of this type is already attached as
-                    # rebuilding the layout doesn't remove existing assets and
-                    # readd them, but it uses the existing instances
-                    bp_already_attached = False
-                    for child in skeletal_mesh.get_attached_actors():
-                        if child.get_class().get_class_path_name().package_name\
-                                == bp_asset_data.package_name:
-                            bp_already_attached = True
-                            break
+            #
+            # If there are blueprints we want to attach them to the skeletal mesh
+            for bp_asset_data in blueprints_in_skeleton_path:
+                # Check if a blueprint of this type is already attached as
+                # rebuilding the layout doesn't remove existing assets and
+                # readd them, but it uses the existing instances
+                bp_already_attached = False
+                for child in skeletal_mesh.get_attached_actors():
+                    if child.get_class().get_class_path_name().package_name\
+                            == bp_asset_data.package_name:
+                        bp_already_attached = True
+                        break
 
-                    # The attach socket is taken from the name of the blueprint
-                    # like so: BP_{AssetName}_{SocketName}
-                    asset_name = unreal.Paths.get_base_filename(
-                        unreal.Paths.get_path(skeleton_path))
-                    bp_tokens = str(bp_asset_data.asset_name).split(asset_name+'_',1)
-                    if len(bp_tokens) != 2:
-                        if bp_already_attached:
-                            self.log.warning(f'Blueprint {bp_asset_data.package_name} '
-                                            'has the wrong naming convention, so '
-                                            'it is being removed from the layout.')
-
+                if bp_already_attached:
+                    try:
+                        child.call_method('onLayoutInit')
+                    except Exception as e:
+                        if 'Failed to find function \'onLayoutInit\'' in str(e):
+                            # If an attached bp doesn't have the `onLayoutInit`
+                            # method defined, it means it has been removed
+                            # after the bp has been attached and since it is
+                            # now unclear where that bp should be attached,
+                            # we remove it from the level
                             if sequence:
                                 binding = sequence.find_binding_by_name(
                                     child.get_actor_label())
                                 if binding.is_valid():
                                     binding.remove()
 
+                            self.log.warning(
+                                f'{child.get_actor_label()} no longer implements '
+                                 'the `onLayoutInit` method, so it is removed.')
+
                             child.detach_from_actor()
                             child.destroy_actor()
-
                             continue
+                        else:
+                            raise e
 
-                        self.log.warning(f'Blueprint {bp_asset_data.package_name} '
-                                          'has the wrong naming convention, so '
-                                          'it is not being instantiated.')
-                        continue
-
-                    socket_name = bp_tokens[-1]
-
-                    if bp_already_attached:
-                        # If a blueprint of this type is attached, first
-                        # ensure it's attached to the correct socket
-                        attached_to_socket_name = str(child.get_attach_parent_socket_name())
-                        if socket_name != attached_to_socket_name:
-                            child.detach_from_actor()
-                            child.attach_to_actor(skeletal_mesh,
-                                socket_name=socket_name,
-                                location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
-                                rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
-                                scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
-
-                            old_label = child.get_actor_label()
-                            new_label = str(old_label).replace(
-                                attached_to_socket_name, socket_name)
-
-                            child.rename(new_label)
-                            child.set_actor_label(new_label)
-
-                            if sequence:
-                                # Remove old binding if it exists
-                                old_binding = sequence.find_binding_by_name(old_label)
-                                if old_binding.is_valid():
-                                    old_binding.remove()
-
-                        # Then ensure it's added to the sequence
-                        if sequence:
-                            bindings.append(sequence.add_possessable(child))
-
-                        actors.append(child)
-
-                        # Carry on without creating a new blueprint instance
-                        continue
-
-                    # Create actor of the specified blueprint type
-                    skeleton_bp_actor = EditorLevelLibrary.spawn_actor_from_object(
-                        bp_asset_data.get_asset(), unreal.Vector())
-
-                    # Attach it to our skeletal mesh by snapping
-                    skeleton_bp_actor.attach_to_actor(skeletal_mesh,
-                        socket_name=socket_name,
-                        location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
-                        rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
-                        scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
-
-                    # Add blueprint to sequence and store it in actors and bindings,
-                    # even though they are only needed for importing animation
-                    # which this blueprint will never have
-                    actors.append(skeleton_bp_actor)
+                    # Then ensure it's added to the sequence
                     if sequence:
-                        bindings.append(sequence.add_possessable(skeleton_bp_actor))
+                        bindings.append(sequence.add_possessable(child))
+
+                    actors.append(child)
+
+                    # Carry on without creating a new blueprint instance
+                    continue
+
+                # Create actor of the specified blueprint type
+                skeleton_bp_actor = EditorLevelLibrary.spawn_actor_from_object(
+                    bp_asset_data.get_asset(), unreal.Vector())
+
+                # Attach it to our skeletal mesh, where the socket and the
+                # rules don't matter, as we then call the `onLayoutInit`
+                # method of the blueprint which we expect to handle the
+                # attachment properly
+                skeleton_bp_actor.attach_to_actor(skeletal_mesh,
+                    socket_name='None',
+                    location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                    rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                    scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
+
+                try:
+                    skeleton_bp_actor.call_method('onLayoutInit')
+                except Exception as e:
+                    if 'Failed to find function \'onLayoutInit\'' in str(e):
+                        bp_class_path = bp_asset_data.package_name
+                        self.log.warning(f'Blueprint {bp_class_path} does not '
+                                          'implement the `onLayoutInit` '
+                                          'function, so it is not being attached.')
+                        skeleton_bp_actor.detach_from_actor()
+                        skeleton_bp_actor.destroy_actor()
+                        continue
+                    else:
+                        raise e
+
+                # Add blueprint to sequence and store it in actors and bindings,
+                # even though they are only needed for importing animation
+                # which this blueprint will never have
+                actors.append(skeleton_bp_actor)
+                if sequence:
+                    bindings.append(sequence.add_possessable(skeleton_bp_actor))
 
         return actors, bindings
 
