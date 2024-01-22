@@ -79,7 +79,7 @@ class LayoutLoader(plugin.Loader):
         elif family == 'camera':
             name = "CameraLoader"
         elif family == 'staticMesh':
-            name = "StaticMeshFBXLoaderAtom"
+            name = "StaticMeshFBXLoader"
 
         if name == "":
             return None
@@ -203,6 +203,8 @@ class LayoutLoader(plugin.Loader):
 
                 actor.set_actor_rotation(t.rotation.rotator(), False)
                 actor.set_actor_scale3d(t.scale3d)
+
+
 
                 if class_name == 'SkeletalMesh':
                     skm_comp = actor.get_editor_property(
@@ -498,9 +500,12 @@ class LayoutLoader(plugin.Loader):
 
                     elif family == 'staticMesh':
                         actors, bindings = self._process_family(
-                            assets, 'AtomModel', transform, basis,
+                            assets, 'StaticMesh', transform, basis,
                             sequence, inst
                         )
+                        print("---PROCESSED",actors,bindings)
+                        actors_dict[inst] = actors
+                        bindings_dict[inst] = bindings
 
                     elif family == 'placeholder':
                         actors, bindings = self._process_family(
