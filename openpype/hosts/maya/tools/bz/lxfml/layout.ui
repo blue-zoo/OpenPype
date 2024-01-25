@@ -725,12 +725,12 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
   <customwidget>
    <class>PromotedIconButton</class>
    <extends>QPushButton</extends>
-   <header location="global">openpype.hosts.maya.tools.bz.lego_xml.iconbutton.py</header>
+   <header location="global">openpype.hosts.maya.tools.bz.lxfml.iconbutton.py</header>
   </customwidget>
   <customwidget>
    <class>PromotedIcon</class>
    <extends>QPushButton</extends>
-   <header>openpype.hosts.maya.tools.bz.lego_xml.iconbutton.py</header>
+   <header>openpype.hosts.maya.tools.bz.lxfml.iconbutton.py</header>
   </customwidget>
  </customwidgets>
  <resources/>
