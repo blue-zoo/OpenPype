@@ -118,6 +118,35 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             task.options = options
             unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])  # noqa: E501
 
+            # Check if we have a previous version and if it has any
+            # blueprints in its version folder copy them over to
+            # the new one
+            # NOTE: i can't find a way of just listing a directory, so
+            # instead I am querying all assets in the asset directory
+            # and getting their parents to get all version folders
+            asset_registry = unreal.AssetRegistryHelpers.get_asset_registry()
+            asset_parent_dir = unreal.Paths.get_path(asset_dir)
+            latest_version_folder = ''
+            for asset_data in asset_registry.get_assets_by_path(
+                        asset_parent_dir, recursive=True):
+                package_parent = unreal.Paths.get_path(asset_data.package_name)
+                package_parent_parent = unreal.Paths.get_path(package_parent)
+                if package_parent_parent == asset_parent_dir\
+                        and package_parent > latest_version_folder\
+                        and package_parent < asset_dir:
+                    latest_version_folder = package_parent
+
+            if latest_version_folder:
+                blueprints_to_copy = unreal.AssetRegistryHelpers.\
+                    get_blueprint_assets(unreal.ARFilter(
+                        package_paths=[latest_version_folder]))
+
+                for bp_asset_data in blueprints_to_copy:
+                    bp_name = unreal.Paths.get_clean_filename(bp_asset_data.package_name)
+                    unreal.EditorAssetLibrary.duplicate_asset(
+                        str(bp_asset_data.package_name),
+                        unreal.Paths.combine([asset_dir, bp_name]))
+
             # Create Asset Container
             unreal_pipeline.create_container(
                 container=container_name, path=asset_dir)

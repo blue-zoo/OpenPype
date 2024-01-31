@@ -183,6 +183,7 @@ class LayoutLoader(plugin.Loader):
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         actors = []
         bindings = []
+        skeletal_mesh = None
         for asset in assets:
             obj = ar.get_asset_by_object_path(asset).get_asset()
             if obj.get_class().get_name() == class_name:
@@ -210,12 +211,14 @@ class LayoutLoader(plugin.Loader):
                     skm_comp = actor.get_editor_property(
                         'skeletal_mesh_component')
                     skm_comp.set_bounds_scale(10.0)
+                    skeletal_mesh = actor
                 actors.append(actor)
 
                 if sequence:
                     binding = None
                     for p in sequence.get_possessables():
                         if p.get_name() == actor.get_name():
+                            # NOTE: this does nothing, as the binding name is never that of the actor?
                             binding = p
                             break
 
@@ -223,6 +226,103 @@ class LayoutLoader(plugin.Loader):
                         binding = sequence.add_possessable(actor)
 
                     bindings.append(binding)
+
+        if skeletal_mesh:
+            # Check if there are any blueprints in the Asset version folder
+            skeleton_path = unreal.Paths.get_path(asset)
+            blueprints_in_skeleton_path = unreal.AssetRegistryHelpers.\
+                get_blueprint_assets(unreal.ARFilter(
+                    package_paths=[skeleton_path]))
+
+            # NOTE: worth considering whether we should do anything if there's
+            # not blueprints in the path, as if that's the case, but there's
+            # some attached actors, there's an argument to be made to
+            # unattach and destroy those actors, as they are _likely_ coming
+            # from blueprints that have been moved outside of the correct path,
+            # but there is a chance that those are legitimate actors that
+            # have been attached to the skeletal mesh.
+            #
+            # If there are blueprints we want to attach them to the skeletal mesh
+            for bp_asset_data in blueprints_in_skeleton_path:
+                # Check if a blueprint of this type is already attached as
+                # rebuilding the layout doesn't remove existing assets and
+                # readd them, but it uses the existing instances
+                bp_already_attached = False
+                for child in skeletal_mesh.get_attached_actors():
+                    if child.get_class().get_class_path_name().package_name\
+                            == bp_asset_data.package_name:
+                        bp_already_attached = True
+                        break
+
+                if bp_already_attached:
+                    try:
+                        child.call_method('onLayoutInit')
+                    except Exception as e:
+                        if 'Failed to find function \'onLayoutInit\'' in str(e):
+                            # If an attached bp doesn't have the `onLayoutInit`
+                            # method defined, it means it has been removed
+                            # after the bp has been attached and since it is
+                            # now unclear where that bp should be attached,
+                            # we remove it from the level
+                            if sequence:
+                                binding = sequence.find_binding_by_name(
+                                    child.get_actor_label())
+                                if binding.is_valid():
+                                    binding.remove()
+
+                            self.log.warning(
+                                f'{child.get_actor_label()} no longer implements '
+                                 'the `onLayoutInit` method, so it is removed.')
+
+                            child.detach_from_actor()
+                            child.destroy_actor()
+                            continue
+                        else:
+                            raise e
+
+                    # Then ensure it's added to the sequence
+                    if sequence:
+                        bindings.append(sequence.add_possessable(child))
+
+                    actors.append(child)
+
+                    # Carry on without creating a new blueprint instance
+                    continue
+
+                # Create actor of the specified blueprint type
+                skeleton_bp_actor = EditorLevelLibrary.spawn_actor_from_object(
+                    bp_asset_data.get_asset(), unreal.Vector())
+
+                # Attach it to our skeletal mesh, where the socket and the
+                # rules don't matter, as we then call the `onLayoutInit`
+                # method of the blueprint which we expect to handle the
+                # attachment properly
+                skeleton_bp_actor.attach_to_actor(skeletal_mesh,
+                    socket_name='None',
+                    location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                    rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                    scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
+
+                try:
+                    skeleton_bp_actor.call_method('onLayoutInit')
+                except Exception as e:
+                    if 'Failed to find function \'onLayoutInit\'' in str(e):
+                        bp_class_path = bp_asset_data.package_name
+                        self.log.warning(f'Blueprint {bp_class_path} does not '
+                                          'implement the `onLayoutInit` '
+                                          'function, so it is not being attached.')
+                        skeleton_bp_actor.detach_from_actor()
+                        skeleton_bp_actor.destroy_actor()
+                        continue
+                    else:
+                        raise e
+
+                # Add blueprint to sequence and store it in actors and bindings,
+                # even though they are only needed for importing animation
+                # which this blueprint will never have
+                actors.append(skeleton_bp_actor)
+                if sequence:
+                    bindings.append(sequence.add_possessable(skeleton_bp_actor))
 
         return actors, bindings
 
