@@ -21,6 +21,7 @@ class CreateRig(plugin.MayaCreator):
 
         self.log.info("Creating Rig instance set up ...")
         controls = cmds.sets(name=subset_name + "_controls_SET", empty=True)
-        jointExtract = cmds.sets(name=subset_name + "_joints_SET", empty=True)
+        joints = cmds.sets(name=subset_name + "_joints_SET", empty=True)
         pointcache = cmds.sets(name=subset_name + "_out_SET", empty=True)
-        cmds.sets([controls, pointcache,jointExtract], forceElement=instance_node)
+        realtime_geo = cmds.sets(name=subset_name + "_realtime_out_SET", empty=True)
+        cmds.sets([controls, pointcache,joints,realtime_geo], forceElement=instance_node)

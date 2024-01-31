@@ -176,6 +176,19 @@ class ExtractAnimation(ExtractAlembic):
     def process(self, instance):
         super().process(instance)
 
+        # Switch the reference to the realtime representation for caching
+        rig_reference_node = None
+        for node in instance:
+            if not cmds.referenceQuery(node, isNodeReferenced=True):
+                continue
+            rig_reference_node = cmds.referenceQuery(node, referenceNode=True)
+            break
+
+        referenced_rig_file = cmds.referenceQuery(rig_reference_node, filename=True)
+        realtime_repr_file = referenced_rig_file.rsplit('.ma',1)[0] + '.mb'
+        if os.path.exists(realtime_repr_file):
+            cmds.file(realtime_repr_file, loadReference=rig_reference_node)
+
         out_sets = [node for node in instance if node.endswith("joints_SET")]
         geo_sets = [node for node in instance if node.endswith("out_SET")]
 
@@ -209,3 +222,7 @@ class ExtractAnimation(ExtractAlembic):
                 "namespace":_namespace
             }
             instance.data["representations"].append(representation)
+
+        # Switch back to the animation reference
+        if os.path.exists(realtime_repr_file):
+            cmds.file(referenced_rig_file, loadReference=rig_reference_node)
