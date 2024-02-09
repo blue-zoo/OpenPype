@@ -569,56 +569,83 @@ def set_sequence_hierarchy(
     vis_sections = [s for s in visibility_track.get_sections() if s.get_level_names() == maps]
     vis_sections.sort( key=lambda x: x.get_end_frame() )
 
-    vis_section_pre_vis_created = False
-    vis_section_vis_created = False
-    vis_section_post_vis_created = False
-
+    # If all visibility tracks exist
     if len(vis_sections) == 3:
         vis_section_pre_vis = vis_sections[0]
+        vis_section_pre_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+
         vis_section_vis = vis_sections[1]
+        vis_section_vis.set_visibility(unreal.LevelVisibility.VISIBLE)
+
         vis_section_post_vis = vis_sections[2]
+        vis_section_post_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
 
 
-
-    elif min_frame_j > 1 and max_frame_j < max_frame_i:
-        vis_section_pre_vis = visibility_track.add_section()
-        vis_section_vis = visibility_track.add_section()
+    elif len(vis_sections) == 2:
+        vis_section_pre_vis = vis_sections[0]
+        vis_section_vis = vis_sections[1]
+        # Add post section
         vis_section_post_vis = visibility_track.add_section()
-        vis_section_pre_vis_created = True
-        vis_section_vis_created = True
-        vis_section_post_vis_created = True
+        vis_section_post_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        index = vis_section_vis.get_row_index()
+        vis_section_post_vis.set_row_index(index)
+        vis_section_post_vis.set_level_names(maps)
 
-    else:
+    elif len(vis_sections) == 1:
+        # found track treated as visbile
+        vis_section_vis = vis_sections[0]
+        index = vis_section_vis.get_row_index()
+        vis_section_vis.set_visibility(unreal.LevelVisibility.VISIBLE)
+
+        # Add pre section
+        vis_section_pre_vis = visibility_track.add_section()
+        vis_section_pre_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        vis_section_pre_vis.set_row_index(index)
+        vis_section_pre_vis.set_level_names(maps)
+
+        # Add post section
+        vis_section_post_vis = visibility_track.add_section()
+        vis_section_post_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        vis_section_post_vis.set_row_index(index)
+        vis_section_post_vis.set_level_names(maps)
+
+    elif len(vis_sections) == 0:
+        # No tracks exist, create all
+        index = len(visibility_track.get_sections())
+
+        vis_section_pre_vis = visibility_track.add_section()
+        vis_section_pre_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        vis_section_pre_vis.set_row_index(index)
+        vis_section_pre_vis.set_level_names(maps)
+
         vis_section_vis = visibility_track.add_section()
-        vis_section_vis_created = True
+        vis_section_vis.set_visibility(unreal.LevelVisibility.VISIBLE)
+        vis_section_vis.set_row_index(index)
+        vis_section_vis.set_level_names(maps)
+
+        vis_section_post_vis = visibility_track.add_section()
+        vis_section_post_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
+        vis_section_post_vis.set_row_index(index)
+        vis_section_post_vis.set_level_names(maps)
 
 
-    index = len(visibility_track.get_sections())
+
 
     vis_section_vis.set_range(
         min_frame_j,
         max_frame_j + 1)
-    vis_section_vis.set_visibility(unreal.LevelVisibility.VISIBLE)
-    if vis_section_vis_created:
-        vis_section_vis.set_row_index(index)
-        vis_section_vis.set_level_names(maps)
 
     if min_frame_j > 1:
         vis_section_post_vis.set_range(
             1,
             min_frame_j)
-        vis_section_post_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
-        if vis_section_post_vis_created:
-            vis_section_post_vis.set_row_index(index)
-            vis_section_post_vis.set_level_names(maps)
+
+
     if max_frame_j < max_frame_i:
         vis_section_pre_vis.set_range(
             max_frame_j + 1,
             max_frame_i + 1)
         vis_section_pre_vis.set_visibility(unreal.LevelVisibility.HIDDEN)
-        if vis_section_pre_vis_created:
-            vis_section_pre_vis.set_row_index(index)
-            vis_section_pre_vis.set_level_names(maps)
 
 
 def generate_sequence(h, h_dir):
