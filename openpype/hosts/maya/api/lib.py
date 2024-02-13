@@ -1714,8 +1714,9 @@ def make_rig_to_shader_connections(nodes, shader_nodes):
         return
 
     def _get_namespace(node):
-        long_name = node.split(':')[0]
-        return long_name.strip('|')
+        # in WIP files there's no namespaces necessarily,
+        # so we support that as well
+        return node.split(':')[0].strip('|') if ':' in node else ''
 
     # these are sets when coming from `load_look`  v
     nodes_namespace = _get_namespace(next(iter(nodes)))
