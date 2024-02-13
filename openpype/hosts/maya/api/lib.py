@@ -1533,7 +1533,14 @@ def set_attribute(attribute, value, node):
     """
 
     value_type = type(value).__name__
-    kwargs = ATTRIBUTE_DICT[value_type]
+
+    try:
+        kwargs = ATTRIBUTE_DICT[value_type]
+    except KeyError:
+        log.warning("Not setting uncrecognised attribute type '{}' for '{}' on "
+                    "'{}'".format(value_type, attribute, node))
+        return
+
     if not cmds.attributeQuery(attribute, node=node, exists=True):
         log.debug("Creating attribute '{}' on "
                   "'{}'".format(attribute, node))
