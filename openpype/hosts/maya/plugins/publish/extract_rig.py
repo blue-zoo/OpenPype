@@ -196,7 +196,7 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
 
         # Define extract output file path
         dir_path = self.staging_dir(instance)
-        filename = "{0}.{1}".format(instance.name + '_realtime', 'mb')
+        filename = "{0}.{1}".format(instance.name + '.realtime', self.scene_type)
         path = os.path.join(dir_path, filename)
 
         # Perform extraction
@@ -211,7 +211,7 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
                       # representation, as just adding realtime to the name and
                       # doing an ascii export fails saying there already is
                       # a transaction for the same representation. TODO
-                      typ="mayaBinary",  # noqa: E501
+                      typ="mayaAscii" if self.scene_type == "ma" else "mayaBinary",  # noqa: E501
                       exportSelected=True,
                       preserveReferences=False,
                       channels=True,
@@ -223,8 +223,8 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
             instance.data["representations"] = []
 
         representation = {
-            'name': 'realtime_mb',
-            'ext': 'mb',
+            'name': 'realtime.' + self.scene_type,
+            'ext': 'realtime.' + self.scene_type,
             'files': filename,
             "stagingDir": dir_path
         }

@@ -184,8 +184,12 @@ class ExtractAnimation(ExtractAlembic):
             rig_reference_node = cmds.referenceQuery(node, referenceNode=True)
             break
 
+        # NOTE: getting the path to the realtime representation feels like should
+        # be happening via the API, but we'd still be relying on a hardcoded name,
+        # so in practice this should be the identical but without the extra http call
         referenced_rig_file = cmds.referenceQuery(rig_reference_node, filename=True)
-        realtime_repr_file = referenced_rig_file.rsplit('.ma',1)[0] + '.mb'
+        referenced_file_name, referenced_file_ext = referenced_rig_file.rsplit('.',1)
+        realtime_repr_file = referenced_file_name + '.realtime.' + referenced_file_ext
         if os.path.exists(realtime_repr_file):
             cmds.file(realtime_repr_file, loadReference=rig_reference_node)
 
