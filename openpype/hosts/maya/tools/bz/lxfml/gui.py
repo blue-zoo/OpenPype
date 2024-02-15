@@ -30,11 +30,11 @@ class GUI(VFXWindow):
         self.setWindowPalette('maya')
         QtCompat.loadUi(os.path.join(os.path.dirname(__file__), 'layout.ui'), self)
 
-        self.xmlPath.setPlaceholderText(r'Y:\LEGO\1828s_LegoCitySeries2\Libraries\Model_Library\_importingTestA\legoExample.lxfml')
-        self.geoPath.setPlaceholderText(r'Y:\LEGO\1828s_LegoCitySeries2\Libraries\Model_Library\_legoLibrary\High_processed\m')
-        self.shdPath.setPlaceholderText(r'Y:\LEGO\1828s_LegoCitySeries2\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
-        self.palettePath.setPlaceholderText(r'Y:\LEGO\1828s_LegoCitySeries2\Libraries\Shader_Library\Color_ID_List_BZ.json')
-        self.decalPath.setPlaceholderText(r'Y:\LEGO\1828s_LegoCitySeries2\Libraries\Texture_Library\Decorations')
+        self.xmlPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Model_Library\_importingTestA\legoExample.lxfml')
+        self.geoPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Model_Library\_legoLibrary\High_processed\m')
+        self.shdPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
+        self.palettePath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Shader_Library\Color_ID_List_BZ.json')
+        self.decalPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Texture_Library\Decorations')
 
         self.menuClose.triggered.connect(self.close)
         self.menuDocs.triggered.connect(lambda: webbrowser.open('https://sites.google.com/blue-zoo.co.uk/software-tools-workflow/software-tools-workflow-home-page/software/maya/blue-zoo-maya-tools/lego-importer'))

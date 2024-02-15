@@ -425,7 +425,7 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
             <string>Path to the palette colour list file.</string>
            </property>
            <property name="placeholderText">
-            <string>Y:/LEGO/1686s_LegoCitySeries1/Libraries/Shader_Library/Color_ID_List_BZ.json</string>
+            <string>Y:/LEGO/1880s_LegoCity2025/Libraries/Shader_Library/Color_ID_List_BZ.json</string>
            </property>
           </widget>
          </item>

@@ -184,7 +184,7 @@ class ColourPalette(object):
 
     __slots__ = ('_colours', '_filePath')
 
-    def __init__(self, filePath='Y:/LEGO/1686s_LegoCitySeries1/Libraries/Shader_Library/Color_ID_List_BZ.json'):
+    def __init__(self, filePath='Y:/LEGO/1880s_LegoCity2025/Libraries/Shader_Library/Color_ID_List_BZ.json'):
         self._colours = {}
         self.filePath = filePath
 
