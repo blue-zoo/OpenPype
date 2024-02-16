@@ -134,6 +134,7 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
                 "usd",
                 "staticMesh",
                 "skeletalMesh",
+                "placeholder",
                 "mvLook",
                 "mvUsd",
                 "mvUsdComposition",
