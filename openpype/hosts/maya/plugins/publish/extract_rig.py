@@ -14,7 +14,7 @@ class ExtractRig(publish.Extractor):
 
     label = "Extract Rig (Maya Scene)"
     hosts = ["maya"]
-    families = ["_rig"]
+    families = ["_rig"] # NOTE: currently this publisher is disabled by the underscore
     scene_type = "ma"
 
 
@@ -43,9 +43,9 @@ class ExtractRig(publish.Extractor):
         # Perform extraction
         self.log.info("Performing extraction ...")
         with maintained_selection():
-            # since we deleted the `realtime_out_SET` and the contents
-            # of the `joints_SET`, there's now nodes in the instance
-            # that don't exist, hence the `objExists`
+            # since we may have deleted the `realtime_out_SET` and the contents
+            # of the `joints_SET` if this is a realtime rig, there's now
+            # nodes in the instance that don't exist, hence the `objExists`
             cmds.select([x for x in instance if cmds.objExists(x)], noExpand=True)
             cmds.file(path,
                       force=True,
@@ -93,11 +93,19 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
 
         set_members =  instance.data.get("setMembers",[])
         geo = [s for s in set_members if s.endswith("realtime_out_SET")]
+        out_set = 'realtime_out_SET'
+        if not geo:
+            geo = [s for s in set_members if s.endswith("out_SET")]
+            out_set = 'out_SET'
         joints = [s for s in set_members if s.endswith("joints_SET")]
-        if not len(joints) == 1 or not len(geo) == 1:
-            self.log.info('No "joints_SET" or "realtime_out_SET detected')
+
+        if not len(joints) == 1:
+            self.log.info('No "joints_SET" detected.')
             return
 
+        if not len(geo) == 1:
+            self.log.info('No "realtime_out_SET" or "out_SET" detected.')
+            return
 
         to_extract = geo + joints
 
@@ -145,7 +153,8 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
                 group_id = pype_id.split(':',1)[0]
                 break
         if group_id is None:
-            raise RuntimeError('Could not identify mesh nodes in realtime_out_SET.')
+            raise RuntimeError(
+                'Could not identify mesh nodes in the "{}" set.'.format(out_set))
 
         project_name = get_current_project_name()
         subset_docs = get_subsets(
@@ -190,53 +199,51 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
         cmds.file(_oldFile, open=True,force=True)
 
         # Extract realtime .ma rig
-        # We don't need the _realtime_out_SET, as that's only for the FBX
-        if cmds.objExists(instance.name + '_realtime_out_SET'):
+        if out_set == 'realtime_out_SET':
+            # We don't need the _realtime_out_SET, as that's only for the FBX
             cmds.delete(cmds.sets(instance.name + '_realtime_out_SET', q=1))
 
-        # Define extract output file path
-        dir_path = self.staging_dir(instance)
-        filename = "{0}.{1}".format(instance.name + '.realtime', self.scene_type)
-        path = os.path.join(dir_path, filename)
+            # Define extract output file path
+            dir_path = self.staging_dir(instance)
+            filename = "{0}.{1}".format(instance.name + '.realtime', self.scene_type)
+            path = os.path.join(dir_path, filename)
 
-        # Perform extraction
-        self.log.info("Performing extraction ...")
-        with maintained_selection():
-            # since we deleted the `realtime_out_SET`, there's now nodes
-            # in the instance that don't exist, hence the `objExists`
-            cmds.select([x for x in instance if cmds.objExists(x)], noExpand=True)
-            cmds.file(path,
-                      force=True,
-                      # NOTE temporarily exporing as a binary file as the realtime
-                      # representation, as just adding realtime to the name and
-                      # doing an ascii export fails saying there already is
-                      # a transaction for the same representation. TODO
-                      typ="mayaAscii" if self.scene_type == "ma" else "mayaBinary",  # noqa: E501
-                      exportSelected=True,
-                      preserveReferences=False,
-                      channels=True,
-                      constraints=True,
-                      expressions=True,
-                      constructionHistory=True)
+            # Perform extraction
+            self.log.info("Performing extraction ...")
+            with maintained_selection():
+                # since we deleted the `realtime_out_SET`, there's now nodes
+                # in the instance that don't exist, hence the `objExists`
+                cmds.select([x for x in instance if cmds.objExists(x)], noExpand=True)
+                cmds.file(
+                    path,
+                    force=True,
+                    typ="mayaAscii" if self.scene_type == "ma" else "mayaBinary",  # noqa: E501
+                    exportSelected=True,
+                    preserveReferences=False,
+                    channels=True,
+                    constraints=True,
+                    expressions=True,
+                    constructionHistory=True)
 
-        if "representations" not in instance.data:
-            instance.data["representations"] = []
+            if "representations" not in instance.data:
+                instance.data["representations"] = []
 
-        representation = {
-            'name': 'realtime.' + self.scene_type,
-            'ext': 'realtime.' + self.scene_type,
-            'files': filename,
-            "stagingDir": dir_path
-        }
-        instance.data["representations"].append(representation)
+            representation = {
+                'name': 'realtime.' + self.scene_type,
+                'ext': 'realtime.' + self.scene_type,
+                'files': filename,
+                "stagingDir": dir_path
+            }
+            instance.data["representations"].append(representation)
 
-        self.log.info("Extracted instance '%s' to: %s" % (instance.name, path))
+            self.log.info("Extracted instance '%s' to: %s" % (instance.name, path))
 
-        # Finally, before exporting the anim rig, delete the contents of the joints_SET as well
-        if cmds.objExists(instance.name + '_joints_SET'):
-            joints_set_contents = cmds.sets(instance.name + '_joints_SET', q=1)
-            cmds.sets(cl=instance.name + '_joints_SET')
-            cmds.delete(joints_set_contents)
+            # Finally, before exporting the anim rig, delete the contents of the
+            # joints_SET as well
+            if cmds.objExists(instance.name + '_joints_SET'):
+                joints_set_contents = cmds.sets(instance.name + '_joints_SET', q=1)
+                cmds.sets(cl=instance.name + '_joints_SET')
+                cmds.delete(joints_set_contents)
 
         # Do the anim rig export
         super().process(instance)
