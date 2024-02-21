@@ -609,7 +609,7 @@ class LayoutLoader(plugin.Loader):
 
                     elif family == 'placeholder':
                         actors, bindings = self._process_family(
-                            assets, 'Blueprint', transform, basis,
+                            assets, 'World', transform, basis,
                             sequence, inst
                         )
 

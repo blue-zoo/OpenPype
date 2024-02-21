@@ -81,13 +81,12 @@ class PlaceHolderAbcLoader(plugin.Loader):
 
         asset = context.get('asset').get('name')
         subset = context.get('representation').get('context').get('subset')
-        variant = subset.split("placeholder")[-1]
         suffix = "_CON"
         if asset:
             asset_name = "{}_{}".format(asset, name)
         else:
             asset_name = "{}".format(name)
-        asset_dir = f"{root}/{asset}/{variant}"
+        asset_dir = f"{root}/{asset}/{subset}"
         self.log.error('Looking For Blueprint in {a}'.format(a=asset_dir))
         existing_assets = EditorAssetLibrary.list_assets(
             asset_dir, recursive=False, include_folder=False
@@ -97,7 +96,7 @@ class PlaceHolderAbcLoader(plugin.Loader):
         for a in existing_assets:
             obj = ar.get_asset_by_object_path(a)
             _a = obj.get_asset()
-            if _a.get_class().get_name() == "Blueprint":
+            if _a.get_class().get_name() == "World":
                 self.log.error('found blueprint {a}'.format(a=a))
 
                 blueprint.append(a)
