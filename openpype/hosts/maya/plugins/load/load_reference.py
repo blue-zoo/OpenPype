@@ -10,6 +10,7 @@ import openpype.hosts.maya.api.plugin
 from openpype.hosts.maya.api.lib import (
     maintained_selection,
     get_container_members,
+    get_custom_namespace,
     parent_nodes,
     create_rig_animation_instance
 )
@@ -239,8 +240,61 @@ class ReferenceLoader(openpype.hosts.maya.api.plugin.ReferenceLoader):
         members = get_container_members(container)
         self._lock_camera_transforms(members)
 
-    def _post_process_rig(self, namespace, context, options):
+        # Replace the namespace of the reference with that of the new asset
+        reference_node = cmds.referenceQuery(members[0], referenceNode=1)
+        current_namespace = cmds.referenceQuery(members[0], namespace=1)
+        new_group, new_namespace, _ = self.get_custom_namespace_and_group(
+            # having to manually construct a context here feels dodgey
+            {'asset': {'name': representation['context']['asset'], 'type': 'asset'},
+             'subset': {'name': representation['context']['subset'],
+                        'data': {'family': representation['context']['family']}}},
+             {}, 'reference_loader')
+        new_namespace = get_custom_namespace(new_namespace)
+        cmds.namespace(rename=(current_namespace, new_namespace))
 
+        # Rename the reference node itself
+        #cmds.rename(reference_node,
+        #            reference_node.replace(current_namespace[1:], new_namespace))
+        # The reference node is locked, so it feels dangerous to do that.
+
+        # Rename the _CON container node
+        con_node = None
+        try:
+            con_node = [conn for conn in
+                        cmds.listConnections(reference_node + '.message')
+                        if conn.endswith('_CON')][0]
+        except IndexError:
+            self.log.error('Could not identify _CON node for ' + reference_node)
+
+        if con_node:
+            cmds.setAttr(con_node + '.namespace', new_namespace, typ='string')
+            cmds.rename(con_node, con_node.replace(current_namespace[1:], new_namespace))
+
+        # Rename the animation instance as well if this is a rig
+        if representation['context']['family'] == 'rig':
+            # ideally, there'd be a `get_rig_animation_instance` function
+            animation_instance = None
+            for container in cmds.ls(typ='objectSet'):
+                container_data_to_replace = {}
+                for attr in ['family', 'variant', 'subset']:
+                    if not cmds.objExists(container + '.' + attr):
+                        break
+                    container_data_to_replace[attr] = cmds.getAttr(
+                        container + '.' + attr)
+                if len(container_data_to_replace) != 3:
+                    continue
+                if container_data_to_replace['family'] != 'animation':
+                    continue
+                if container_data_to_replace['variant'] != current_namespace[1:]:
+                    continue
+                # otherwise it is our animation container
+                cmds.setAttr(container + '.variant', new_namespace, typ='string')
+                cmds.setAttr(container + '.subset',
+                             'animation'+new_namespace, typ='string')
+                cmds.rename(container,
+                            container.replace(current_namespace[1:], new_namespace))
+
+    def _post_process_rig(self, namespace, context, options):
         nodes = self[:]
         create_rig_animation_instance(
             nodes, context, namespace, options=options, log=self.log
