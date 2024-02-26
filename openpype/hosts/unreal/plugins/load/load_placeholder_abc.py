@@ -87,24 +87,24 @@ class PlaceHolderAbcLoader(plugin.Loader):
         else:
             asset_name = "{}".format(name)
         asset_dir = f"{root}/{asset}/{subset}"
-        self.log.error('Looking For Blueprint in {a}'.format(a=asset_dir))
+        self.log.error('Looking For Level in {a}'.format(a=asset_dir))
         existing_assets = EditorAssetLibrary.list_assets(
             asset_dir, recursive=False, include_folder=False
         )
         # Get all the asset containers
-        blueprint = []
+        level = []
         for a in existing_assets:
             obj = ar.get_asset_by_object_path(a)
             _a = obj.get_asset()
             if _a.get_class().get_name() == "World":
-                self.log.error('found blueprint {a}'.format(a=a))
+                self.log.error('found level {a}'.format(a=a))
 
-                blueprint.append(a)
+                level.append(a)
                 break
         existing_assets = unreal.EditorAssetLibrary.list_assets(
             asset_dir, recursive=True, include_folder=True
         )
-        return blueprint
+        return level
 
 
     def update(self, container, representation):
