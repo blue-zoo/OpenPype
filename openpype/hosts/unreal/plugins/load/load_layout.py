@@ -200,6 +200,17 @@ class LayoutLoader(plugin.Loader):
                         obj, t.translation
                     )
                     actor.set_actor_label(inst_name)
+                elif actor.static_class().get_name() == 'SkeletalMeshActor':
+                    # Ensure the actor is using the skeletal mesh specified
+                    # by the provided `asset`, as a rig swap in Maya
+                    # only changes the representation and nothing else
+                    # so we can't just rely on the name
+                    skeletal_mesh_component = actor.skeletal_mesh_component
+                    actor_skeletal_mesh = skeletal_mesh_component\
+                        .skeletal_mesh_asset.get_full_name().split(' ')[1]
+                    if actor_skeletal_mesh != asset:
+                        skeletal_mesh_component.set_skeletal_mesh(
+                            unreal.EditorAssetLibrary.load_asset(asset))
 
 
                 actor.set_actor_rotation(t.rotation.rotator(), False)
