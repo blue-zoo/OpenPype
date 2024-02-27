@@ -28,25 +28,31 @@ GEO = [
     'C_head_PLY',
 ]
 
-print('Referencing {}...'.format(MINIFIG))
-minifig = mc.file(MINIFIG, reference=True, namespace='Minifig')
 
-# Delete UV sets
-print('Deleting existing UV sets...')
-for node in GEO:
-    uvSets = mc.polyUVSet(node, query=True, allUVSets=True)
-    for uvSet in uvSets[1:]:  # Can't delete the default one
-        mc.polyUVSet(node, delete=True, uvSet=uvSet)
+def main():
+    print('Referencing {}...'.format(MINIFIG))
+    minifig = mc.file(MINIFIG, reference=True, namespace='Minifig')
 
-# Copy UV sets
-print('Copying UV sets from minifig...')
-for geo in GEO:
-    source = 'Minifig:' + geo
-    print('Transfer from {} to {}'.format(source, geo))
-    mc.transferAttributes(source, geo, transferUVs=2)
-    mc.delete(geo, constructionHistory=True)
+    # Delete UV sets
+    print('Deleting existing UV sets...')
+    for node in GEO:
+        uvSets = mc.polyUVSet(node, query=True, allUVSets=True)
+        for uvSet in uvSets[1:]:  # Can't delete the default one
+            mc.polyUVSet(node, delete=True, uvSet=uvSet)
 
-print('Removing minifig reference')
-mc.file(minifig, removeReference=True)
+    # Copy UV sets
+    print('Copying UV sets from minifig...')
+    for geo in GEO:
+        source = 'Minifig:' + geo
+        print('Transfer from {} to {}'.format(source, geo))
+        mc.transferAttributes(source, geo, transferUVs=2)
+        mc.delete(geo, constructionHistory=True)
 
-print('Done')
+    print('Removing minifig reference')
+    mc.file(minifig, removeReference=True)
+
+    print('Done')
+
+
+if __name__ == '__main__':
+    main()
