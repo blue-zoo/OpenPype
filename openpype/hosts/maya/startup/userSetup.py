@@ -67,3 +67,13 @@ if shelf_preset:
 
 
 print("Finished OpenPype usersetup.")
+
+# BZ
+# Load animation marking menu
+from openpype.hosts.maya.tools.bz import animationMarkingMenu
+# this requires a `modelPanel` UI element to exist, so it needs to run in an
+# evalDeferred call, but that crashes in batch, so just to be safe
+if not cmds.about(batch=1):
+    cmds.evalDeferred(animationMarkingMenu.initAnimationMarkingMenu)
+
+print("Finished OpenPype BZ usersetup.")
