@@ -92,7 +92,7 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             options.set_editor_property('import_as_skeletal', True)
             options.set_editor_property('import_animations', True)
             options.set_editor_property('import_mesh', True)
-            options.set_editor_property('import_materials', False)
+            options.set_editor_property('import_materials', True)
             options.set_editor_property('import_textures', False)
             options.set_editor_property('skeleton', None)
             options.set_editor_property('create_physics_asset', False)
@@ -123,9 +123,28 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                 'import_meshes_in_bone_hierarchy',
                 True)
 
+            # set the search location for materials to All Assets, so it
+            # searches across the project, but for anything that it doesn't
+            # find, set the default action to _Create New Instanced Materials_,
+            # leaving the base material blank, so it's very clear which materials
+            # haven't been found and they can be easily repathed to inherit from
+            # the correct one
+            base_material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+                'base', '/Game', unreal.Material, unreal.MaterialFactoryNew()
+            )
+            fbx_import_data = unreal.FbxTextureImportData()
+            fbx_import_data.set_editor_property(
+                'base_material_name', unreal.SoftObjectPath('/Game/base'))
+            fbx_import_data.set_editor_property(
+                'material_search_location',
+                unreal.MaterialSearchLocation.ALL_ASSETS)
+
+            options.set_editor_property('texture_import_data', fbx_import_data)
 
             task.options = options
             unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])  # noqa: E501
+
+            unreal.EditorAssetLibrary.delete_asset('/Game/base')
 
             # Check if we have a previous version and if it has any
             # blueprints in its version folder copy them over to

@@ -392,6 +392,10 @@ class LayoutLoader(plugin.Loader):
             'remove_redundant_keys', False)
         task.options.anim_sequence_import_data.set_editor_property(
             'convert_scene', True)
+        task.options.anim_sequence_import_data.set_editor_property(
+            'set_material_drive_parameter_on_custom_attribute', True)
+        task.options.anim_sequence_import_data.set_editor_property(
+            'do_not_import_curve_with_zero', False)
 
         AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
 
