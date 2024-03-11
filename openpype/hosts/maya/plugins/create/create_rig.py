@@ -9,7 +9,7 @@ class CreateRig(plugin.MayaCreator):
     identifier = "io.openpype.creators.maya.rig"
     label = "Rig"
     family = "rig"
-    icon = "wheelchair"
+    icon = "gears"
 
     def create(self, subset_name, instance_data, pre_create_data):
 
@@ -47,7 +47,7 @@ class RealtimeRig(CreateRig):
     identifier = "io.openpype.creators.maya.realtimerig"
     label = "Rig - Realtime"
     family = "rig"
-    icon = "wheelchair"
+    icon = "gears"
 
     def create(self, subset_name, instance_data, pre_create_data):
         instance = super(RealtimeRig, self).create(
