@@ -90,12 +90,21 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             # set import options here
             options = unreal.FbxImportUI()
             options.set_editor_property('import_as_skeletal', True)
-            options.set_editor_property('import_animations', False)
+            options.set_editor_property('import_animations', True)
             options.set_editor_property('import_mesh', True)
             options.set_editor_property('import_materials', False)
             options.set_editor_property('import_textures', False)
             options.set_editor_property('skeleton', None)
             options.set_editor_property('create_physics_asset', False)
+
+            options.anim_sequence_import_data.set_editor_property(
+                'import_custom_attribute', True)
+            options.anim_sequence_import_data.set_editor_property(
+                'remove_redundant_keys', False)
+            options.anim_sequence_import_data.set_editor_property(
+                'set_material_drive_parameter_on_custom_attribute', True)
+            options.anim_sequence_import_data.set_editor_property(
+                'do_not_import_curve_with_zero', False)
 
             options.set_editor_property(
                 'mesh_type_to_import',
