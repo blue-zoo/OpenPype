@@ -57,6 +57,8 @@ class AnimationFBXLoader(plugin.Loader):
 
         asset_doc = get_current_project_asset(fields=["data.fps"])
 
+        unreal.EditorAssetLibrary.delete_asset(asset_dir + '/' + asset_name)
+
         task.set_editor_property('filename', path)
         task.set_editor_property('destination_path', asset_dir)
         task.set_editor_property('destination_name', asset_name)
