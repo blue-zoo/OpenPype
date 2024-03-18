@@ -126,15 +126,25 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             # set the search location for materials to All Assets, so it
             # searches across the project, but for anything that it doesn't
             # find, set the default action to _Create New Instanced Materials_,
-            # leaving the base material blank, so it's very clear which materials
-            # haven't been found and they can be easily repathed to inherit from
-            # the correct one
-            base_material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
-                'base', '/Game', unreal.Material, unreal.MaterialFactoryNew()
-            )
+            # so we get instances of a base material. Ideally we want to have
+            # the instances created with no base material, but in that case it
+            # just creates Materials, so instead we create a temporary material,
+            # which gets deleted after the FBX import. Admittedly, that's a horrible
+            # workflow, but it's the only way I have found to create material instances
+            # with no base material
+            created_temp_material = False
+            temp_material_name = '_temp_base_MAT'
+            temp_material_path = '/Game/' + temp_material_name
+            if not unreal.Paths.file_exists(temp_material_path):
+                unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+                    temp_material_name, '/Game', unreal.Material, unreal.MaterialFactoryNew()
+                )
+                created_temp_material = True
+
             fbx_import_data = unreal.FbxTextureImportData()
             fbx_import_data.set_editor_property(
-                'base_material_name', unreal.SoftObjectPath('/Game/base'))
+                'base_material_name', unreal.SoftObjectPath(temp_material_path))
+
             fbx_import_data.set_editor_property(
                 'material_search_location',
                 unreal.MaterialSearchLocation.ALL_ASSETS)
@@ -144,7 +154,11 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             task.options = options
             unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])  # noqa: E501
 
-            unreal.EditorAssetLibrary.delete_asset('/Game/base')
+            if created_temp_material:
+                # Delete temporary base material, only if we created it, as we
+                # could have run into a case where a material with that path
+                # has already been created manually
+                unreal.EditorAssetLibrary.delete_asset(temp_material_path)
 
             # Check if we have a previous version and if it has any
             # blueprints in its version folder copy them over to
