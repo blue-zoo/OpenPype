@@ -162,10 +162,14 @@ class CameraLoader(plugin.Loader):
             _a = ar.get_asset_by_object_path(s)
             if _a.get_class().get_name() == "LevelSequence":
 
-                shotLevelPath = '{p}/{n}_map.{n}_map'.format(
-                    p=str(_a.package_path),
-                    n =str(_a.asset_name)
-                )
+                # Since the camera is not associated with a layout, we add it
+                # to all layouts
+                for a_in_package_path in EditorAssetLibrary.list_assets(
+                        _a.package_path, recursive=False, include_folder=False):
+                    a_in_package = ar.get_asset_by_object_path(a_in_package_path)
+                    if a_in_package.get_class().get_name() == 'World':
+                        shotLevelPath = f'{a_in_package.package_name}.{a_in_package.asset_name}'
+
                 if EditorAssetLibrary.does_asset_exist(shotLevelPath):
                     shotLevel = ar.get_asset_by_object_path(shotLevelPath)
                     shotLevels.append({
@@ -188,13 +192,17 @@ class CameraLoader(plugin.Loader):
                 shotLevelFolder, recursive=False, include_folder=False)
             ar = unreal.AssetRegistryHelpers.get_asset_registry()
             container = None
+            skip = False
             for a in asset_children:
                 obj = ar.get_asset_by_object_path(a)
                 _a = obj.get_asset()
                 if _a.get_name() == container_name and _a.get_class().get_name() == "AyonAssetContainer":
                     container = _a
-                    raise AttributeError("Camera already imported, use updater to manage")
-
+                    self.log.warning(f"Camera already imported in {shot['level']}, use updater to manage")
+                    skip = True
+                    break
+            if skip:
+                continue
 
             path = self.filepath_from_context(context)
             settings = unreal.MovieSceneUserImportFBXSettings()

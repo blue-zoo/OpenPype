@@ -733,10 +733,12 @@ class LayoutLoader(plugin.Loader):
         container_name += suffix
         EditorAssetLibrary.make_directory(asset_dir)
 
+        asset_subset = f'{asset}_{container_name[:-4]}'
+
         master_level = None
         shot = None
         sequences = []
-        level = f"{asset_dir}/{asset}_map.{asset}_map"
+        level = f"{asset_dir}/{asset_subset}_map.{asset_subset}_map"
 
         if not EditorAssetLibrary.does_asset_exist(level):
             EditorLevelLibrary.new_level(level)
@@ -811,7 +813,7 @@ class LayoutLoader(plugin.Loader):
             for a in asset_children:
                 obj = ar.get_asset_by_object_path(a)
                 _a = obj.get_asset()
-                if _a.get_name() == asset and _a.get_class().get_name() == "LevelSequence":
+                if _a.get_name() == asset_subset and _a.get_class().get_name() == "LevelSequence":
                     shot = _a
 
             ## FIXME use existing levels
@@ -819,7 +821,7 @@ class LayoutLoader(plugin.Loader):
             # If shot does nt ex
             if not shot:
                 shot = tools.create_asset(
-                    asset_name=asset,
+                    asset_name=asset_subset,
                     package_path=asset_dir,
                     asset_class=unreal.LevelSequence,
                     factory=unreal.LevelSequenceFactoryNew()
@@ -1076,6 +1078,9 @@ class LayoutLoader(plugin.Loader):
 
             sequences = [master_sequence]
 
+            asset_subset = f"{container.get('asset')}_{container.get('container_name')[:-4]}"
+            container_vis_track_name = unreal.Name(f"{asset_subset}_map")
+
             parent = None
             for s in sequences:
                 tracks = s.get_master_tracks()
@@ -1090,8 +1095,7 @@ class LayoutLoader(plugin.Loader):
                 if subscene_track:
                     sections = subscene_track.get_sections()
                     for ss in sections:
-                        if (ss.get_sequence().get_name() ==
-                                container.get('asset')):
+                        if ss.get_sequence().get_name() == asset_subset:
                             parent = s
                             subscene_track.remove_section(ss)
                             break
@@ -1105,8 +1109,7 @@ class LayoutLoader(plugin.Loader):
                 if visibility_track:
                     sections = visibility_track.get_sections()
                     for ss in sections:
-                        if (unreal.Name(f"{container.get('asset')}_map")
-                                in ss.get_level_names()):
+                        if container_vis_track_name in ss.get_level_names():
                             visibility_track.remove_section(ss)
                     # Update visibility sections indexes.
                     i = -1
@@ -1139,7 +1142,7 @@ class LayoutLoader(plugin.Loader):
 
         # Delete the parent folder if there aren't any more layouts in it.
         asset_content = EditorAssetLibrary.list_assets(
-            str(path.parent), recursive=False, include_folder=True
+            str(path.parent), recursive=True, include_folder=True
         )
 
         if len(asset_content) == 0:
