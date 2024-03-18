@@ -218,13 +218,29 @@ class ExtractAnimation(ExtractAlembic):
             _namespace =str(cmds.referenceQuery(_node,namespace=True))
             self.log.info('Storing Representation namespace as "{}" '.format(_namespace))
 
+            # Get the layouts to which the animated rig belongs, to be
+            # stored in the publish representation
+            rig_groups = [node for node in cmds.sets(str(instance),q=1)
+                          if cmds.nodeType(node) == 'transform']
+            layouts = set()
+            if rig_groups:
+                for _set in cmds.listSets(object=rig_groups[0]) or []:
+                    family_attr = _set + '.family'
+                    if cmds.objExists(family_attr)\
+                            and cmds.getAttr(family_attr) == 'layout':
+                        layouts.add(_set)
+
+            if len(layouts) != 1:
+                raise RuntimeError(f'{str(instance)} belongs to more than 1 layout.')
+
             representation = {
                 "name": "fbx",
                 "ext": "fbx",
                 "files": fbxfilename,
                 "stagingDir": parent_dir,
                 "outputName": "fbxanim",
-                "namespace":_namespace
+                "namespace":_namespace,
+                "layout":list(layouts)[0],
             }
             instance.data["representations"].append(representation)
 
