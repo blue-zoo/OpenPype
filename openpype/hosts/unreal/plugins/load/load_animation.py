@@ -175,6 +175,9 @@ class AnimationFBXLoader(plugin.Loader):
         for h in hierarchy:
             hierarchy_dir = f"{hierarchy_dir}/{h}"
         hierarchy_dir = f"{hierarchy_dir}/{asset}"
+        layout = context.get('representation',{}).get('context',{}).get('layout',None)
+        if layout is not None:
+            hierarchy_dir = f"{hierarchy_dir}/{layout}"
         _filter = unreal.ARFilter(
             class_names=["World"],
             package_paths=[f"{hierarchy_dir}/"],

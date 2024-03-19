@@ -836,6 +836,8 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
         # NOTE: Added to export namespace
         if repre.get("namespace"):
             repre_context["namespace"] = repre.get("namespace")
+        if repre.get("layout"):
+            repre_context["layout"] = repre.get("layout")
 
         repre_doc = new_representation_doc(
             repre["name"], version["_id"], repre_context, data, repre_id
