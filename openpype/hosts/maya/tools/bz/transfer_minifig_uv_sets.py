@@ -45,7 +45,7 @@ def main():
     for geo in GEO:
         source = 'Minifig:' + geo
         print('Transfer from {} to {}'.format(source, geo))
-        mc.transferAttributes(source, geo, transferUVs=2)
+        mc.transferAttributes(source, geo, transferUVs=2, sampleSpace=4)
         mc.delete(geo, constructionHistory=True)
 
     print('Removing minifig reference')
