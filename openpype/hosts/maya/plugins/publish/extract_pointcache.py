@@ -227,11 +227,15 @@ class ExtractAnimation(ExtractAlembic):
                 for _set in cmds.listSets(object=rig_groups[0]) or []:
                     family_attr = _set + '.family'
                     if cmds.objExists(family_attr)\
-                            and cmds.getAttr(family_attr) == 'layout':
+                            and cmds.getAttr(family_attr) in ['layout','layout_multi']:
                         layouts.add(_set)
 
-            if len(layouts) != 1:
-                raise RuntimeError(f'{str(instance)} belongs to more than 1 layout.')
+            if len(layouts) > 1:
+                raise RuntimeError(f'{str(instance)} belongs to more than 1 layout, which '
+                                    'is not supported for Animation publishing.')
+            if len(layouts) == 0:
+                # If no layout is identified, fallback to not having a layout association
+                layouts = [None]
 
             representation = {
                 "name": "fbx",
