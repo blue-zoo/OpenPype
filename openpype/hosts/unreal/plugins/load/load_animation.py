@@ -122,6 +122,7 @@ class AnimationFBXLoader(plugin.Loader):
             animation.set_editor_property('force_root_lock', True)
             animation.set_editor_property('root_motion_root_lock', unreal.RootMotionRootLock.REF_POSE)
             animation.set_editor_property('additive_anim_type', unreal.AdditiveAnimationType.AAT_NONE)
+            animation.set_editor_property('interpolation', unreal.AnimInterpolationType.STEP)
             actor.skeletal_mesh_component.set_editor_property(
                 'animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
             actor.skeletal_mesh_component.animation_data.set_editor_property(
