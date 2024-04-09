@@ -117,6 +117,7 @@ class ExtractUnrealSkeletalMeshFbxRig(ExtractRig):
         self.log.info("Members: {0}".format(to_extract))
         self.log.info("Instance: {0}".format(instance[:]))
         instance.data["upAxis"]="z"
+        instance.data["inAscii"]=False # use binary for smaller sizes
 
         fbx_exporter.set_options_from_instance(instance)
 

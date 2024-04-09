@@ -63,7 +63,8 @@ class FBXExtractor:
             "embeddedTextures": bool,
             "inputConnections": bool,
             "upAxis": str,  # x, y or z,
-            "triangulate": bool
+            "triangulate": bool,
+            "inAscii": bool,
         }
 
     @property
@@ -104,7 +105,8 @@ class FBXExtractor:
             "embeddedTextures": False,
             "inputConnections": True,
             "upAxis": "y",
-            "triangulate": False
+            "triangulate": False,
+            "inAscii": True,
         }
 
     def __init__(self, log=None):
@@ -205,8 +207,4 @@ class FBXExtractor:
 
         """
         cmds.select(members, r=True, noExpand=True)
-        for x in members:
-            print(x)
-        #mel.eval("FBXExportAnimationOnly -v true")
-        mel.eval("FBXExportInAscii -v true")
         mel.eval('FBXExport -f "{}" -s'.format(path))
