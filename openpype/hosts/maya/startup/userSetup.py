@@ -71,9 +71,14 @@ print("Finished OpenPype usersetup.")
 # BZ
 # Load animation marking menu
 from openpype.hosts.maya.tools.bz import animationMarkingMenu
+from openpype.hosts.maya.tools.bz.playblast import addPlayblastMenu
+
 # this requires a `modelPanel` UI element to exist, so it needs to run in an
 # evalDeferred call, but that crashes in batch, so just to be safe
 if not cmds.about(batch=1):
     cmds.evalDeferred(animationMarkingMenu.initAnimationMarkingMenu)
+
+    # Add the playblast menu items (on evaluate deferred)
+    addPlayblastMenu()
 
 print("Finished OpenPype BZ usersetup.")
