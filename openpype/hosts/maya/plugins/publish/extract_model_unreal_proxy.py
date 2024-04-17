@@ -68,7 +68,7 @@ class ExtractModelProxy(publish.Extractor):
 
         _toExport = []
         for member in members:
-            _toExport.extend( cmds.listRelatives(member, shapes=True, fullPath = True, noIntermediate=True) or [] )
+            _toExport.extend(cmds.listRelatives(member, ad=1, typ='mesh', fullPath = True, noIntermediate=True) or [])
         _toExport.extend(members)
 
         with suspended_refresh(suspend=True):
@@ -83,7 +83,6 @@ class ExtractModelProxy(publish.Extractor):
                     **options,
                     verbose=True
                 )
-
 
         if "representations" not in instance.data:
             instance.data["representations"] = []
