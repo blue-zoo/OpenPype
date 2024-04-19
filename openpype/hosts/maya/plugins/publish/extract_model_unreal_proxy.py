@@ -56,7 +56,7 @@ class ExtractModelProxy(publish.Extractor):
         options = {
             "step": 1.0,
             "writeVisibility": True,
-            "writeCreases": True,
+            "writeCreases": False,
             "writeColorSets": False,
             "writeFaceSets": False,
             "uvWrite": True,
