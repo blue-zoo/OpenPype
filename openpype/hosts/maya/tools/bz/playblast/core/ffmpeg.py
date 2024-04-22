@@ -1,11 +1,19 @@
 import importlib
+import os
 from openpype.lib import vendor_bin_utils
 from openpype.hosts.maya.tools.bz.playblast.core import subprocess
+
 importlib.reload(subprocess)
+
+# Add the file path for the icon
+_currentFile = __file__
+_currentDir = os.path.dirname(_currentFile)
+iconFilePath = os.path.join( _currentDir, "bz_logo_small.png" )
+iconFilePath = iconFilePath.replace("\\","/")
 
 cmd = '''
 "{ffmpeg}"
- -i "{input}" -i "C:/bz_pipeline/icons/bz_logo_small.png"
+ -i "{input}" -i "{icn}"
  -vcodec mjpeg -pix_fmt yuvj420p
  -filter_complex "  [1:v]scale=100:69 [ovrl], [0:v][ovrl ]  overlay=(main_w-overlay_w)v/2:(main_h-overlay_h)/2   :x=5  :y=-19
 , drawtext=text=%{{eif\\\\\:n+{offset}  \\\\\:d}} \[ %{{eif\\\\\:n+1  \\\\\:d}} \\\: "{dur}" \]  : x=w-130: y= h-((2*lh)-10): fontcolor=white: fontsize=18: box=1: boxcolor=0x00000099 :fontfile='C\\:\\\\Windows\\\\Fonts\\\\ebrima.ttf'
@@ -51,7 +59,8 @@ def convert(
         dur=duration,
         timecode = timecode,
         output = outputFile,
-        comment = comment
+        comment = comment,
+        icn = iconFilePath
     )
     print(_cmd)
     _convertCommand = _cmd.replace("\n","")
