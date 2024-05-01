@@ -268,8 +268,10 @@ class LayoutLoader(plugin.Loader):
                         break
 
                 if bp_already_attached:
+                    onLayoutInit_ran = False
                     try:
                         child.call_method('onLayoutInit')
+                        onLayoutInit_ran = True
                     except Exception as e:
                         if 'Failed to find function \'onLayoutInit\'' in str(e):
                             # If an attached bp doesn't have the `onLayoutInit`
@@ -292,6 +294,20 @@ class LayoutLoader(plugin.Loader):
                             continue
                         else:
                             raise e
+
+                    if onLayoutInit_ran:
+                        # onLayoutInit uses snap to target, but since the sockets
+                        # coming from Maya are flipped in X, let's solve that by
+                        # flipping here.
+                        # NOTE: it would be way better to do this in the rigs,
+                        #       but there's a lot of published ones already, so
+                        #       we solve it on loading
+                        child.add_actor_local_transform(
+                            unreal.Transform(scale=[-1,1,1]),
+                            False, False)
+                        unreal.log_warning('layout loading: flipping BP -1 in X after '
+                                           '`onLayoutInit` to account for socket '
+                                           'transform on ' + str(child))
 
                     # Then ensure it's added to the sequence
                     if sequence:
@@ -316,8 +332,10 @@ class LayoutLoader(plugin.Loader):
                     rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
                     scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
 
+                onLayoutInit_ran = False
                 try:
                     skeleton_bp_actor.call_method('onLayoutInit')
+                    onLayoutInit_ran = True
                 except Exception as e:
                     if 'Failed to find function \'onLayoutInit\'' in str(e):
                         bp_class_path = bp_asset_data.package_name
@@ -329,6 +347,20 @@ class LayoutLoader(plugin.Loader):
                         continue
                     else:
                         raise e
+
+                if onLayoutInit_ran:
+                    # onLayoutInit uses snap to target, but since the sockets
+                    # coming from Maya are flipped in X, let's solve that by
+                    # flipping here.
+                    # NOTE: it would be way better to do this in the rigs,
+                    #       but there's a lot of published ones already, so
+                    #       we solve it on loading
+                    skeleton_bp_actor.add_actor_local_transform(
+                        unreal.Transform(scale=[-1,1,1]),
+                        False, False)
+                    unreal.log_warning('layout loading: flipping BP -1 in X after '
+                                        '`onLayoutInit` to account for socket '
+                                        'transform on ' + str(skeleton_bp_actor))
 
                 # Add blueprint to sequence and store it in actors and bindings,
                 # even though they are only needed for importing animation
