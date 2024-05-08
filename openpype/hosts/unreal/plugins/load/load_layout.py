@@ -260,17 +260,49 @@ class LayoutLoader(plugin.Loader):
                 # Check if a blueprint of this type is already attached as
                 # rebuilding the layout doesn't remove existing assets and
                 # readd them, but it uses the existing instances
-                bp_already_attached = False
+                bp_asset_data_split_path = str(bp_asset_data.package_name).split('/')
+                found_actor = None
                 for child in skeletal_mesh.get_attached_actors():
-                    if child.get_class().get_class_path_name().package_name\
-                            == bp_asset_data.package_name:
-                        bp_already_attached = True
-                        break
+                    child_path = child.get_class().get_class_path_name().package_name
+                    child_split_path = str(child_path).split('/')
 
-                if bp_already_attached:
+                    if len(child_split_path) != len(bp_asset_data_split_path):
+                        continue
+
+                    # Check if this is the same blueprint, but from different
+                    # versions of the asset, where only the second to last
+                    # token in the path will be different
+                    differences = [(a != b) for a,b in zip(bp_asset_data_split_path,
+                                                           child_split_path)]
+                    if sum(differences) == 1 and differences[-2]:
+                        # Delete the existing blueprint, as we should replace it with
+                        # the one from the new version of the asset
+                        if sequence:
+                            binding = sequence.find_binding_by_name(
+                                child.get_actor_label())
+                            if binding.is_valid():
+                                binding.remove()
+
+                        self.log.warning(
+                            f'{child.get_actor_label()} is from an older version.'
+                             ' of the asset, so it is being deleted to be replaced'
+                             ' with its new version.')
+
+                        child.detach_from_actor()
+                        child.destroy_actor()
+
+                        continue
+
+                    # Otherwise let's just check if this is the same blueprint, in
+                    # which case we have found a match (NOTE: this does not support
+                    # multiples of the same BP being attached, but that is not to spec)
+                    if child_path == bp_asset_data.package_name:
+                        found_actor = child
+
+                if found_actor is not None:
                     onLayoutInit_ran = False
                     try:
-                        child.call_method('onLayoutInit')
+                        found_actor.call_method('onLayoutInit')
                         onLayoutInit_ran = True
                     except Exception as e:
                         if 'Failed to find function \'onLayoutInit\'' in str(e):
@@ -281,16 +313,16 @@ class LayoutLoader(plugin.Loader):
                             # we remove it from the level
                             if sequence:
                                 binding = sequence.find_binding_by_name(
-                                    child.get_actor_label())
+                                    found_actor.get_actor_label())
                                 if binding.is_valid():
                                     binding.remove()
 
                             self.log.warning(
-                                f'{child.get_actor_label()} no longer implements '
+                                f'{found_actor.get_actor_label()} no longer implements '
                                  'the `onLayoutInit` method, so it is removed.')
 
-                            child.detach_from_actor()
-                            child.destroy_actor()
+                            found_actor.detach_from_actor()
+                            found_actor.destroy_actor()
                             continue
                         else:
                             raise e
