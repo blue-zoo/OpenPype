@@ -18,7 +18,7 @@ EXTENSION = ".mov"
 def getTimeCodeForFrame(frame):
     fps = mel.eval('float $fps = `currentTimeUnitToFPS`')
     tc = timecode.Timecode(str(int(fps)), '00:00:00:00')
-    tc.frames = frame
+    tc.frames = frame+1
     return str(tc)
 
 def playblast(
