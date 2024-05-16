@@ -15,6 +15,9 @@ from openpype.hosts.maya.tools.bz.playblast.core import playblast
 from openpype.hosts.maya.tools.bz.playblast.core import utils
 importlib.reload(utils)
 
+from openpype.hosts.maya.tools.bz.playblast.core import upload
+importlib.reload(upload)
+
 from openpype.hosts.maya.tools.bz.playblast.core.utils import (
     getAyonShotAttributes,
     getMayaShotAttributes,
@@ -77,6 +80,9 @@ class MayaPlayblastWindow(QtWidgets.QWidget,windowUI.Ui_PlayblasterWidget):
         # Callback for update progress bar
         self._callbackId = None
 
+        # Last playblasted file
+        self._lastPlayblast = None
+
         # Set regex for the comment bar
         self._setCommentRegex()
 
@@ -95,6 +101,10 @@ class MayaPlayblastWindow(QtWidgets.QWidget,windowUI.Ui_PlayblasterWidget):
         regex = QtCore.QRegExp(COMMENT_REGEX)
         validator = QtGui.QRegExpValidator(regex, self.commentBurnInLineEdit)
         self.commentBurnInLineEdit.setValidator(validator)
+
+    def launchUploadTool(self):
+        if self._lastPlayblast:
+            upload.launchUploadTool(self._lastPlayblast)
 
     def setCommentToSceneName(self):
         # To set the comment
@@ -205,7 +215,7 @@ class MayaPlayblastWindow(QtWidgets.QWidget,windowUI.Ui_PlayblasterWidget):
 
         try:
             self._setPlayblastSettings()
-            playblast.playblast(
+            self._lastPlayblast = playblast.playblast(
                 startTime = self.playblastStartTime,
                 endTime = self.playblastEndTime,
                 width = playblastWidth,
