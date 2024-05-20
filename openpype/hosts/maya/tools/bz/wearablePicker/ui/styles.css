@@ -1,0 +1,25 @@
+*:focus {
+    outline: none;
+}
+
+QHeaderView {
+    background: #333;
+    color: #aaa;
+}
+
+QTableView {
+    alternate-background-color: #333;
+    border: 1px solid #222;
+}
+
+QTreeView {
+    alternate-background-color: #333;
+    border: 1px solid #222;
+}
+
+QTreeView::item {
+    padding: 7px;
+}
+
+QPushButton {
+}
