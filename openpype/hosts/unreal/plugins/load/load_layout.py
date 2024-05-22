@@ -41,6 +41,13 @@ from openpype.hosts.unreal.api.pipeline import (
     ls,
 )
 
+# A global switch to make more obvious and easily reversible the
+# decision to replace AYONs default level hierarchy, which forces
+# the episode level to be loaded every time a layout for a shot is
+# loaded, as that becomes painfully slow and potentially will
+# be impossible as soon as the production hits its full scale
+replacing_AYONs_level_hierarchy = True
+
 
 class LayoutLoader(plugin.Loader):
     """Load Layout from a JSON file"""
@@ -806,6 +813,8 @@ class LayoutLoader(plugin.Loader):
 
         if not EditorAssetLibrary.does_asset_exist(level):
             EditorLevelLibrary.new_level(level)
+        elif replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.load_level(level)
 
         level_data = EditorAssetLibrary.find_asset_data(level)
         level_asset = level_data.get_asset()
@@ -820,7 +829,7 @@ class LayoutLoader(plugin.Loader):
                     EditorLevelLibrary.new_level(f"{h_dir}/{h_asset}_map")
 
             # If there is a level sequence of all levels
-            if master_level:
+            if not replacing_AYONs_level_hierarchy and master_level:
                 EditorLevelLibrary.load_level(master_level)
                 added_levels = EditorLevelUtils.get_levels( EditorLevelLibrary.get_editor_world() )
 
@@ -973,11 +982,15 @@ class LayoutLoader(plugin.Loader):
 
         #if master_level:
         #
-        EditorLevelLibrary.load_level(master_level)
+        if not replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.load_level(master_level)
 
         return asset_content
 
     def update(self, container, representation):
+        raise NotImplementedError(
+            'Updating layouts is not supported. Please load it instead.')
+
         data = get_current_project_settings()
         create_sequences = data["unreal"]["level_sequences_for_layouts"]
 
@@ -1189,25 +1202,32 @@ class LayoutLoader(plugin.Loader):
             assert parent, "Could not find the parent sequence"
 
         # Create a temporary level to delete the layout level.
-        EditorLevelLibrary.save_all_dirty_levels()
-        EditorAssetLibrary.make_directory(f"{root}/tmp")
-        tmp_level = f"{root}/tmp/temp_map"
-        if not EditorAssetLibrary.does_asset_exist(f"{tmp_level}.temp_map"):
-            EditorLevelLibrary.new_level(tmp_level)
+        if not replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.save_all_dirty_levels()
+            EditorAssetLibrary.make_directory(f"{root}/tmp")
+            tmp_level = f"{root}/tmp/temp_map"
+            if not EditorAssetLibrary.does_asset_exist(f"{tmp_level}.temp_map"):
+                EditorLevelLibrary.new_level(tmp_level)
+            else:
+                EditorLevelLibrary.load_level(tmp_level)
         else:
-            EditorLevelLibrary.load_level(tmp_level)
+            EditorLevelLibrary.new_level('/Game')
+            # This will warn that it can't save the new level, but
+            # that's perfect for our needs, as we want an ephemeral
+            # level, i.e. we just want to load _nothing_
 
         # Delete the layout directory.
         EditorAssetLibrary.delete_directory(str(path))
 
-        if create_sequences:
-            EditorLevelLibrary.load_level(master_level)
-            EditorAssetLibrary.delete_directory(f"{root}/tmp")
+        if not replacing_AYONs_level_hierarchy:
+            if create_sequences:
+                EditorLevelLibrary.load_level(master_level)
+                EditorAssetLibrary.delete_directory(f"{root}/tmp")
 
-        # Delete the parent folder if there aren't any more layouts in it.
-        asset_content = EditorAssetLibrary.list_assets(
-            str(path.parent), recursive=True, include_folder=True
-        )
+            # Delete the parent folder if there aren't any more layouts in it.
+            asset_content = EditorAssetLibrary.list_assets(
+                str(path.parent), recursive=True, include_folder=True
+            )
 
-        if len(asset_content) == 0:
-            EditorAssetLibrary.delete_directory(str(path.parent))
+            if len(asset_content) == 0:
+                EditorAssetLibrary.delete_directory(str(path.parent))
