@@ -18,7 +18,7 @@ from unreal import (
     LevelSequenceEditorBlueprintLibrary as LevelSequenceLib,
 )
 
-from openpype.client import get_asset_by_name, get_representations
+from openpype.client import get_asset_by_name, get_representations, get_assets
 from openpype.pipeline import (
     discover_loader_plugins,
     loaders_from_representation,
@@ -40,6 +40,13 @@ from openpype.hosts.unreal.api.pipeline import (
     imprint,
     ls,
 )
+
+# A global switch to make more obvious and easily reversible the
+# decision to replace AYONs default level hierarchy, which forces
+# the episode level to be loaded every time a layout for a shot is
+# loaded, as that becomes painfully slow and potentially will
+# be impossible as soon as the production hits its full scale
+replacing_AYONs_level_hierarchy = True
 
 
 class LayoutLoader(plugin.Loader):
@@ -804,8 +811,62 @@ class LayoutLoader(plugin.Loader):
         sequences = []
         level = f"{asset_dir}/{asset_subset}_map.{asset_subset}_map"
 
+        if replacing_AYONs_level_hierarchy:
+            # Check if the sequence Level and LevelSequence exist, as they will
+            # need to be streamed into the shot itself to allow for continuity
+            # across the whole sequence (things like water, crowds, etc.)
+            #
+            # This is the first half of the #replacing_AYONs_level_hierarchy block
+            sequence_dir = Path(asset_dir).parent.parent
+            sequence_path = sequence_dir / ('CONTINUITY_' + sequence_dir.name)
+            sequence_level_path = sequence_path.with_name(sequence_path.name + '_map')
+
+            # Ensure the sequence LevelSequence exists
+            if not EditorAssetLibrary.does_asset_exist(sequence_path.as_posix()):
+                sequence_levelSeq = tools.create_asset(
+                    asset_name=sequence_path.name,
+                    package_path=sequence_dir.as_posix(),
+                    asset_class=unreal.LevelSequence,
+                    factory=unreal.LevelSequenceFactoryNew())
+            else:
+                sequence_levelSeq = EditorAssetLibrary.load_asset(sequence_path.as_posix())
+
+            # Set the frame range
+            sequence_ayon_asset = get_asset_by_name(get_current_project_name(),
+                                                    sequence_dir.name,
+                                                    fields=["_id", "data.fps"])
+            shots_ayon_assets = get_assets(get_current_project_name(),
+                                           parent_ids=[sequence_ayon_asset['_id']],
+                                           fields=['data.clipIn','data.clipOut'])
+            if not shots_ayon_assets:
+                raise RuntimeError(f'Could not identify shots for {sequence_path.name}')
+
+            fps = sequence_ayon_asset['data']['fps']
+            shot_frame_ranges = [(s['data']['clipIn'],s['data']['clipOut'])
+                                 for s in shots_ayon_assets]
+            sequence_frame_range = (
+                min([fr[0] for fr in shot_frame_ranges]),
+                max([fr[1] for fr in shot_frame_ranges]))
+
+            sequence_levelSeq.set_display_rate(unreal.FrameRate(fps, 1.0))
+            sequence_levelSeq.set_playback_start(sequence_frame_range[0])
+            sequence_levelSeq.set_playback_end(sequence_frame_range[1])
+
+            sequence_levelSeq.set_work_range_start(sequence_frame_range[0] / fps)
+            sequence_levelSeq.set_work_range_end(sequence_frame_range[1] / fps)
+            sequence_levelSeq.set_view_range_start(sequence_frame_range[0] / fps)
+            sequence_levelSeq.set_view_range_end(sequence_frame_range[1] / fps)
+
+            # Ensure the sequence level exists as well
+            if not EditorAssetLibrary.does_asset_exist(sequence_level_path.as_posix()):
+                EditorLevelLibrary.new_level(sequence_level_path.as_posix())
+
+            # End of the first half of the #replacing_AYONs_level_hierarchy block
+
         if not EditorAssetLibrary.does_asset_exist(level):
             EditorLevelLibrary.new_level(level)
+        elif replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.load_level(level)
 
         level_data = EditorAssetLibrary.find_asset_data(level)
         level_asset = level_data.get_asset()
@@ -820,7 +881,7 @@ class LayoutLoader(plugin.Loader):
                     EditorLevelLibrary.new_level(f"{h_dir}/{h_asset}_map")
 
             # If there is a level sequence of all levels
-            if master_level:
+            if not replacing_AYONs_level_hierarchy and master_level:
                 EditorLevelLibrary.load_level(master_level)
                 added_levels = EditorLevelUtils.get_levels( EditorLevelLibrary.get_editor_world() )
 
@@ -848,10 +909,15 @@ class LayoutLoader(plugin.Loader):
                     h_dir, recursive=False, include_folder=False)
 
                 existing_sequences = [
-                    EditorAssetLibrary.find_asset_data(asset)
-                    for asset in root_content
-                    if EditorAssetLibrary.find_asset_data(
-                        asset).get_class().get_name() == 'LevelSequence'
+                    asset_data for asset in root_content
+                    if (asset_data := EditorAssetLibrary.find_asset_data(
+                        asset)).get_class().get_name() == 'LevelSequence'
+                        # if we are using the non-AYON level hierarchy, where
+                        # sequences have their own level and levelSequence
+                        # with names starting with CONTINUITY_, make sure we don't
+                        # include those into the episode levelSeq
+                        and (not replacing_AYONs_level_hierarchy
+                          or not str(asset_data.asset_name).startswith('CONTINUITY_'))
                 ]
 
                 if not existing_sequences:
@@ -973,11 +1039,64 @@ class LayoutLoader(plugin.Loader):
 
         #if master_level:
         #
-        EditorLevelLibrary.load_level(master_level)
+        if not replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.load_level(master_level)
+        else:
+            # Stream the sequence level into the shot level and add the
+            # sequence levelSequence as a subsequence in the shot
+            #
+            # This is the second part of the #replacing_AYONs_level_hierarchy block
+
+            # Ensure the sequence level is streamed in the current one only once
+            sequence_level = EditorAssetLibrary.load_asset(sequence_level_path.as_posix())
+            current_world = EditorLevelLibrary.get_editor_world()
+            sequence_level_already_streamed = any(
+                level.get_path_name().split(':')[0] == sequence_level.get_path_name()
+                for level in EditorLevelUtils.get_levels(current_world))
+
+            if not sequence_level_already_streamed:
+                EditorLevelUtils.add_level_to_world(
+                    current_world, sequence_level_path.as_posix(),
+                    unreal.LevelStreamingDynamic)
+
+                # Make sure the *curent* level as understood by Unreal is the
+                # shot's level, as we want to save only it
+                level_subsystem = unreal.LevelEditorSubsystem()
+                level_subsystem.set_current_level_by_name(f'{asset_subset}_map')
+                level_subsystem.save_current_level()
+
+            # Ensure the sequence level sequence is added as a subsequence only once
+            subscene_track = next(iter(
+                shot.find_tracks_by_exact_type(unreal.MovieSceneSubTrack) + [None]))
+
+            if subscene_track is None:
+                subscene_track = shot.add_master_track(unreal.MovieSceneSubTrack)
+
+            subsection = None
+            for section in subscene_track.get_sections():
+                if section.get_editor_property('sub_sequence') == sequence_levelSeq:
+                    subsection = section
+                    break
+
+            if not subsection:
+                subsection = subscene_track.add_section()
+                subsection.set_editor_property('sub_sequence', sequence_levelSeq)
+                subsection.set_row_index(len(subscene_track.get_sections()))
+
+            # Ensure the frame range of the sequence is correct
+            subsection.set_range(*sequence_frame_range)
+
+            # Save the shot sequence now that it has the sequence as a subsequence
+            unreal.EditorAssetLibrary.save_asset(shot.get_path_name())
+
+            # End of the second half of the #replacing_AYONs_level_hierarchy block
 
         return asset_content
 
     def update(self, container, representation):
+        raise NotImplementedError(
+            'Updating layouts is not supported. Please load it instead.')
+
         data = get_current_project_settings()
         create_sequences = data["unreal"]["level_sequences_for_layouts"]
 
@@ -1189,25 +1308,32 @@ class LayoutLoader(plugin.Loader):
             assert parent, "Could not find the parent sequence"
 
         # Create a temporary level to delete the layout level.
-        EditorLevelLibrary.save_all_dirty_levels()
-        EditorAssetLibrary.make_directory(f"{root}/tmp")
-        tmp_level = f"{root}/tmp/temp_map"
-        if not EditorAssetLibrary.does_asset_exist(f"{tmp_level}.temp_map"):
-            EditorLevelLibrary.new_level(tmp_level)
+        if not replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.save_all_dirty_levels()
+            EditorAssetLibrary.make_directory(f"{root}/tmp")
+            tmp_level = f"{root}/tmp/temp_map"
+            if not EditorAssetLibrary.does_asset_exist(f"{tmp_level}.temp_map"):
+                EditorLevelLibrary.new_level(tmp_level)
+            else:
+                EditorLevelLibrary.load_level(tmp_level)
         else:
-            EditorLevelLibrary.load_level(tmp_level)
+            EditorLevelLibrary.new_level('/Game')
+            # This will warn that it can't save the new level, but
+            # that's perfect for our needs, as we want an ephemeral
+            # level, i.e. we just want to load _nothing_
 
         # Delete the layout directory.
         EditorAssetLibrary.delete_directory(str(path))
 
-        if create_sequences:
-            EditorLevelLibrary.load_level(master_level)
-            EditorAssetLibrary.delete_directory(f"{root}/tmp")
+        if not replacing_AYONs_level_hierarchy:
+            if create_sequences:
+                EditorLevelLibrary.load_level(master_level)
+                EditorAssetLibrary.delete_directory(f"{root}/tmp")
 
-        # Delete the parent folder if there aren't any more layouts in it.
-        asset_content = EditorAssetLibrary.list_assets(
-            str(path.parent), recursive=True, include_folder=True
-        )
+            # Delete the parent folder if there aren't any more layouts in it.
+            asset_content = EditorAssetLibrary.list_assets(
+                str(path.parent), recursive=True, include_folder=True
+            )
 
-        if len(asset_content) == 0:
-            EditorAssetLibrary.delete_directory(str(path.parent))
+            if len(asset_content) == 0:
+                EditorAssetLibrary.delete_directory(str(path.parent))
