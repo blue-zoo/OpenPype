@@ -1054,9 +1054,6 @@ class LayoutLoader(plugin.Loader):
                 level.get_path_name().split(':')[0] == sequence_level.get_path_name()
                 for level in EditorLevelUtils.get_levels(current_world))
 
-            if sequence_level_already_streamed:
-                self.log.warning('VS: already streamed so skipping')
-
             if not sequence_level_already_streamed:
                 EditorLevelUtils.add_level_to_world(
                     current_world, sequence_level_path.as_posix(),
