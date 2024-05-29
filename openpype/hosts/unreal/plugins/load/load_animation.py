@@ -17,6 +17,9 @@ from openpype.pipeline import (
 from openpype.hosts.unreal.api import plugin
 from openpype.hosts.unreal.api import pipeline as unreal_pipeline
 
+from openpype.hosts.unreal.plugins.load.load_layout import\
+    replacing_AYONs_level_hierarchy
+
 
 class AnimationFBXLoader(plugin.Loader):
     """Load Unreal SkeletalMesh from FBX."""
@@ -187,8 +190,9 @@ class AnimationFBXLoader(plugin.Loader):
 
         level = levels[0].get_asset().get_path_name()
 
-        unreal.EditorLevelLibrary.save_all_dirty_levels()
-        unreal.EditorLevelLibrary.load_level(level)
+        if not replacing_AYONs_level_hierarchy:
+            unreal.EditorLevelLibrary.save_all_dirty_levels()
+            unreal.EditorLevelLibrary.load_level(level)
 
         container_name += suffix
 
@@ -293,7 +297,8 @@ class AnimationFBXLoader(plugin.Loader):
                 EditorAssetLibrary.save_asset(a)
 
         unreal.EditorLevelLibrary.save_current_level()
-        unreal.EditorLevelLibrary.load_level(master_level)
+        if not replacing_AYONs_level_hierarchy:
+            unreal.EditorLevelLibrary.load_level(master_level)
 
     def update(self, container, representation):
         name = container["asset_name"]
