@@ -1084,7 +1084,12 @@ class LayoutLoader(plugin.Loader):
                 subsection.set_row_index(len(subscene_track.get_sections()))
 
             # Ensure the frame range of the sequence is correct
-            subsection.set_range(*sequence_frame_range)
+            # All shots start at frame 100, so the sequence then needs to
+            # be added at 100 - (shot_clipIn - seq_clipIn)
+            shot_clipIn = get_asset_by_name(project_name, asset)["data"]["clipIn"]
+            sequence_start = 100 - (shot_clipIn - sequence_frame_range[0])
+            sequence_length = sequence_frame_range[1] - sequence_frame_range[0]
+            subsection.set_range(sequence_start, sequence_start+sequence_length)
 
             # Save the shot sequence now that it has the sequence as a subsequence
             unreal.EditorAssetLibrary.save_asset(shot.get_path_name())
