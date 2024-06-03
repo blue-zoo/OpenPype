@@ -932,6 +932,13 @@ class LayoutLoader(plugin.Loader):
                             e.get_asset().get_playback_start(),
                             e.get_asset().get_playback_end()+1))
 
+            if replacing_AYONs_level_hierarchy:
+                # Ensure that we are inside the shot level from this point onwards
+                # as set_sequence_hierarchy crashes otherwise. Something between
+                # here and ~977 (the first set_sequence_hierarchy) causes it, but
+                # I haven't been able to understand what.
+                EditorLevelLibrary.load_level(level)
+
             # FIXME -  Get Current LevelSequence objects and check if already present
             # DONE
             asset_children = EditorAssetLibrary.list_assets(
