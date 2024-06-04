@@ -34,9 +34,11 @@ def playblast(
     ):
 
 
-    tempFile = tempfile.NamedTemporaryFile(delete=False,suffix=EXTENSION)
+    tempFile = tempfile.NamedTemporaryFile(delete=False,suffix=".avi")
     tempFileName = tempFile.name
     tempFileSafe = tempFile.name.replace("\\","/")
+
+    print("Temp Playblasting to {x}".format(x=tempFile))
 
     # CameraName
     cmds.modelEditor(editor,e=1,camera=camera)
@@ -44,15 +46,22 @@ def playblast(
     # Datetime string
     date = str(datetime.datetime.now()).split(".")[:1][0].replace(":","\\\:")
 
+    availableCodecs = cmds.playblast(query=True,compression=True)
+    if "Lagarith" in availableCodecs:
+        codec = "Lagarith"
+    else:
+        print("Warning Lagarith codec was not installed...")
+        codec = "none"
+
     kwargs =  {"filename"      : tempFileSafe,
-                "fmt"          : "qt",
+                "fmt"          : "avi",
                 "wh"           : [width,height],
                 "st"           : startTime,
                 "et"           : endTime,
                 "showOrnaments": False,
                 "percent"      : 100,
                 "quality"      : 100,
-                "compression"  : "Lagarith",
+                "compression"  : codec,
                 "epn"          :  editor,
                 "fo"           :  True,
                 "v"            :  False
@@ -86,4 +95,12 @@ def playblast(
         comment = comment
     )
     if os.path.isfile(outputFile):
+        # Remove old video files
+        _dir,_f = os.path.split(tempFileName)
+        files = glob.glob(_dir+"\\*.avi")
+        for _f in files:
+            try:
+                os.unlink(_f)
+            except PermissionError:
+                pass
         return outputFile
