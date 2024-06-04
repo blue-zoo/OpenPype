@@ -26,6 +26,9 @@ from openpype.hosts.unreal.api.pipeline import (
     imprint,
 )
 
+from openpype.hosts.unreal.plugins.load.load_layout import\
+    replacing_AYONs_level_hierarchy
+
 
 class CameraLoader(plugin.Loader):
     """Load Unreal StaticMesh from FBX"""
@@ -507,19 +510,26 @@ class CameraLoader(plugin.Loader):
         assert parent, "Could not find the parent sequence"
 
         # Create a temporary level to delete the layout level.
-        EditorLevelLibrary.save_all_dirty_levels()
-        EditorAssetLibrary.make_directory(f"{root}/tmp")
-        tmp_level = f"{root}/tmp/temp_map"
-        if not EditorAssetLibrary.does_asset_exist(f"{tmp_level}.temp_map"):
-            EditorLevelLibrary.new_level(tmp_level)
+        if not replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.save_all_dirty_levels()
+            EditorAssetLibrary.make_directory(f"{root}/tmp")
+            tmp_level = f"{root}/tmp/temp_map"
+            if not EditorAssetLibrary.does_asset_exist(f"{tmp_level}.temp_map"):
+                EditorLevelLibrary.new_level(tmp_level)
+            else:
+                EditorLevelLibrary.load_level(tmp_level)
         else:
-            EditorLevelLibrary.load_level(tmp_level)
+            EditorLevelLibrary.new_level('/Game')
+            # This will warn that it can't save the new level, but
+            # that's perfect for our needs, as we want an ephemeral
+            # level, i.e. we just want to load _nothing_
 
         # Delete the layout directory.
         EditorAssetLibrary.delete_directory(asset_dir)
 
-        EditorLevelLibrary.load_level(master_level)
-        EditorAssetLibrary.delete_directory(f"{root}/tmp")
+        if not replacing_AYONs_level_hierarchy:
+            EditorLevelLibrary.load_level(master_level)
+            EditorAssetLibrary.delete_directory(f"{root}/tmp")
 
         # Check if there isn't any more assets in the parent folder, and
         # delete it if not.

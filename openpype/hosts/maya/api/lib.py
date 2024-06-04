@@ -1663,7 +1663,9 @@ def assign_look_by_version(nodes, version_id):
     representation_id = str(look_representation['_id'])
     for container in host.ls():
         if (container['loader'] == "LookLoader" and
-                container['representation'] == representation_id):
+                container['representation'] == representation_id
+                and False): # BZ: Disable reusing looks, as we allow individual
+                            # rig to shader connections unique to each instance
             log.info("Reusing loaded look ..")
             container_node = container['objectName']
             break
