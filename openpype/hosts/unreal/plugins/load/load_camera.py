@@ -176,24 +176,24 @@ class CameraLoader(plugin.Loader):
                 if EditorAssetLibrary.does_asset_exist(shotLevelPath):
                     shotLevel = ar.get_asset_by_object_path(shotLevelPath)
                     shotLevels.append({
-                        'level':shotLevel.get_asset(),
-                        'sequence':_a.get_asset(),
+                        'levelPath': shotLevelPath,
+                        'sequencePath': s,
                         'shotLevelFolder':shotLevel.package_path
                     })
 
+        level_subsystem = unreal.LevelEditorSubsystem()
 
         sequenceCameraBindingId = None
         for shot in shotLevels:
             frame_ranges = []
             sequences = []
-            seq = shot['sequence']
-            level = shot['level']
+            seq = ar.get_asset_by_object_path(shot['sequencePath']).get_asset()
             shotLevelFolder = shot['shotLevelFolder']
 
             # Look through the shots folder to find a container, raise error if present
             asset_children = EditorAssetLibrary.list_assets(
                 shotLevelFolder, recursive=False, include_folder=False)
-            ar = unreal.AssetRegistryHelpers.get_asset_registry()
+            #ar = unreal.AssetRegistryHelpers.get_asset_registry()
             container = None
             skip = False
             for a in asset_children:
@@ -201,9 +201,16 @@ class CameraLoader(plugin.Loader):
                 _a = obj.get_asset()
                 if _a.get_name() == container_name and _a.get_class().get_name() == "AyonAssetContainer":
                     container = _a
-                    self.log.warning(f"Camera already imported in {shot['level']}, use updater to manage")
+                    self.log.warning(f"Camera already imported in {shot['levelPath']}, use updater to manage")
                     skip = True
                     break
+
+            # We get crashes when we try to open a new level after loading a camera
+            # because we never actually loaded the layout level before, so we do it here
+            level_subsystem.save_all_dirty_levels()
+            level_subsystem.load_level(shot['levelPath'])
+            level = unreal.EditorLevelLibrary.get_editor_world()
+
             if skip:
                 continue
 
@@ -235,6 +242,7 @@ class CameraLoader(plugin.Loader):
             newCameras = [camera for camera in postImportCameras if camera not in preImportCameras]
             for camera in newCameras:
                 camera.tags = camera.tags + [context["representation"]["_id"]]
+                self.set_camera_properties(camera, context['representation'])
 
             bindingName = binding.get_name()
 
@@ -376,6 +384,7 @@ class CameraLoader(plugin.Loader):
                 newCameras = [camera for camera in postImportCameras if camera not in preImportCameras]
                 for camera in newCameras:
                     camera.tags = camera.tags + [str(representation["_id"])]
+                    self.set_camera_properties(camera, representation)
 
 
                 _id = bindingId.get_editor_property('guid')
@@ -391,7 +400,7 @@ class CameraLoader(plugin.Loader):
                     #section.set_range(clipIn,clipOut)
                     pass
 
-
+        EditorLevelLibrary.save_all_dirty_levels()
 
         data = {
             "representation": str(representation["_id"]),
@@ -539,3 +548,26 @@ class CameraLoader(plugin.Loader):
 
         if len(asset_content) == 0:
             EditorAssetLibrary.delete_directory(path.parent.as_posix())
+
+    def set_camera_properties(self, actor, representation):
+        camera = actor.get_cine_camera_component()
+        post_proc_settings = camera.post_process_settings
+
+        # Defaults
+        post_proc_settings.motion_blur_amount = 0
+        post_proc_settings.override_motion_blur_amount = True
+        post_proc_settings.camera_shutter_speed = 0
+        post_proc_settings.override_camera_shutter_speed = True
+        post_proc_settings.path_tracing_max_path_exposure = 1
+        post_proc_settings.override_path_tracing_max_path_exposure = True
+
+        # Published information from maya
+        published_properties = representation['data']['context'].get(
+            'camera_properties', None)
+
+        if published_properties is None:
+            self.log.warning(
+                f'No camera properties published from maya for {actor}')
+            return
+
+        camera.current_focal_length = published_properties['focalLength']

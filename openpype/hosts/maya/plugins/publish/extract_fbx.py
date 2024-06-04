@@ -71,6 +71,18 @@ class ExtractFBX(publish.Extractor):
             'files': filename,
             "stagingDir": staging_dir,
         }
+
+        if instance.data.get("family") == "camera":
+            camera = next((n for n in (cmds.listRelatives(instance) or [None])
+                        if cmds.nodeType(n) == 'camera'))
+
+            if camera is None:
+                raise RuntimeError(f'Camera set {instance} does not contain a camera.')
+
+            representation['camera_properties'] = {
+                'focalLength': cmds.getAttr(camera + '.focalLength'),
+            }
+
         instance.data["representations"].append(representation)
 
         self.log.info("Extract FBX successful to: {0}".format(path))

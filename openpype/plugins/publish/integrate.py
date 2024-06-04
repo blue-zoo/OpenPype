@@ -839,6 +839,9 @@ class IntegrateAsset(pyblish.api.InstancePlugin):
         if repre.get("layout"):
             repre_context["layout"] = repre.get("layout")
 
+        if repre.get("camera_properties"):
+            repre_context["camera_properties"] = repre.get("camera_properties")
+
         repre_doc = new_representation_doc(
             repre["name"], version["_id"], repre_context, data, repre_id
         )
