@@ -4,6 +4,7 @@ from maya import cmds
 from maya import mel
 import tempfile
 import os
+import glob
 from openpype.hosts.maya.tools.bz.playblast.core import ffmpeg
 from openpype.hosts.maya.tools.bz.playblast.core import timecode
 from openpype.hosts.maya.tools.bz.playblast.ui import window
