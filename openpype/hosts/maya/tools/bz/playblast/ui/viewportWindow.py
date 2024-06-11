@@ -40,8 +40,15 @@ class ViewportWidget(QtWidgets.QWidget):
         # create panel and add the current settings
         model_editor, camera, display_app, use_default_ma = self.get_active_camera()
         self.modelPanelName = cmds.modelPanel(self.panelName, label="PlayblastView", cam=camera, menuBarVisible=False)
+
         self.editor = cmds.modelPanel(self.modelPanelName, q=1, modelEditor=1)
-        cmds.modelEditor(self.editor, edit=True, da=display_app, udm=use_default_ma)
+
+        # Set model editor for playblast flags
+        cmds.modelEditor(self.editor, edit=True, da=display_app, udm=use_default_ma,
+        displayTextures = True,
+        nurbsCurves=False,
+        selectionHiliteDisplay=False,
+        headsUpDisplay=False)
 
         ptr = mui.MQtUtil.findControl(self.modelPanelName)
         self.modelPanel = wrapInstance(int(ptr), QtWidgets.QWidget)
