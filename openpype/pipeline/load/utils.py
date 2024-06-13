@@ -884,7 +884,7 @@ def filter_containers(containers, project_name):
     repre_ids = {
         container["representation"]
         for container in containers
-        if container["representation"]
+        if container.get("representation")
     }
     if not repre_ids:
         if containers:
@@ -945,6 +945,8 @@ def filter_containers(containers, project_name):
     # Based on all collected data figure out which containers are outdated
     #   - log out if there are missing representation or version documents
     for container in containers:
+        if not container.get("representation"):
+            continue
         container_name = container["objectName"]
         repre_id = container["representation"]
         if not repre_id:

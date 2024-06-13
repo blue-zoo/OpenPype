@@ -36,6 +36,7 @@ class ExtractFBX(publish.Extractor):
         self.log.info("Extracting FBX to: {0}".format(path))
 
         members = instance.data["setMembers"]
+
         self.log.info("Members: {0}".format(members))
         self.log.info("Instance: {0}".format(instance[:]))
 
@@ -55,12 +56,40 @@ class ExtractFBX(publish.Extractor):
             cmds.setAttr(_cameraPublishSet+".shiftSequenceAmimation",False)
 
 
+        if instance.data.get("family") == "camera":
+            camera = next((n for n in (cmds.listRelatives(instance) or [None])
+                        if cmds.nodeType(n) == 'camera'))
+
+            cameraParent = cmds.listRelatives(camera,parent=True)[0]
+            parents = cmds.ls(cameraParent, long=True)[0].split("|")[1:-1]
+            parent = cmds.listRelatives(cameraParent, fullPath=True,parent=True )
+
+            child = cmds.listRelatives(cameraParent,shapes=True)
+            if not len(child) == 1 or not cmds.nodeType(child[0]) == "camera":
+                raise Exception("Export set does not contain a single camera")
+            # Check the camera parents have any transformation
+            # Unparent if not as fbx to unreal will show strange transformations
+            if parents:
+                for p in parents:
+                    m = cmds.xform(p,q=1,m=True)
+                    if m != [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]:
+                        raise Exception('Camera {c} has transformations set on more than one Group, Check the camera Grouping'.format(c=cameraParent))
+
+            if parents:
+                print("unparenting Camera for export")
+                members = cmds.parent(cameraParent,world=True,relative=True)
+
         # Export
         self.log.info('Exporting Shot Members to "{p}"'.format(p= path))
         with maintained_selection():
             fbx_exporter.export(members, path)
             cmds.select(members, r=1, noExpand=True)
             mel.eval('FBXExport -f "{}" -s'.format(path))
+
+        if parents:
+            print("re-parenting Camera post export")
+
+            cmds.parent(members,parent)
 
         if "representations" not in instance.data:
             instance.data["representations"] = []
