@@ -44,11 +44,13 @@ class ViewportWidget(QtWidgets.QWidget):
         self.editor = cmds.modelPanel(self.modelPanelName, q=1, modelEditor=1)
 
         # Set model editor for playblast flags
-        cmds.modelEditor(self.editor, edit=True, da=display_app, udm=use_default_ma,
+        cmds.modelEditor(self.editor, edit=True, udm=use_default_ma,
         displayTextures = True,
-        nurbsCurves=False,
+        displayAppearance="smoothShaded",
         selectionHiliteDisplay=False,
-        headsUpDisplay=False)
+        headsUpDisplay=True)
+        cmds.modelEditor(self.editor, edit=True, allObjects=False)
+        cmds.modelEditor(self.editor, edit=True, pluginObjects=("gpuCacheDisplayFilter",True),polymeshes=True)
 
         ptr = mui.MQtUtil.findControl(self.modelPanelName)
         self.modelPanel = wrapInstance(int(ptr), QtWidgets.QWidget)

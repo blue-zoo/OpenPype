@@ -191,10 +191,60 @@ class MayaPlayblastWindow(QtWidgets.QWidget,windowUI.Ui_PlayblasterWidget):
             self.cameraLineEdit.setText(camera)
 
     def _setPlayblastSettings(self):
-        pass
+        cmds.undoInfo(swf=False)
+        if not cmds.getAttr(self.renderableCamera+".filmFit") == 3:
+            cmds.setAttr(self.renderableCamera+".filmFit",3)
+
+        self.panZoomSetting =  cmds.getAttr(self.renderableCamera+".panZoomEnabled")
+        self.displaySafeAction=  cmds.getAttr(self.renderableCamera+".displaySafeAction")
+        self.displaySafeTitle=  cmds.getAttr(self.renderableCamera+".displaySafeTitle")
+        self.displayFilmGate=  cmds.getAttr(self.renderableCamera+".displayFilmGate")
+        self.displayGateMask=  cmds.getAttr(self.renderableCamera+".displayGateMask")
+        self.overscan=  cmds.getAttr(self.renderableCamera+".overscan")
+        self.displayResolution=  cmds.getAttr(self.renderableCamera+".displayResolution")
+        self.displayFieldChart=  cmds.getAttr(self.renderableCamera+".displayFieldChart")
+
+
+        cmds.setAttr(self.renderableCamera+".displayResolution",0)
+        cmds.setAttr(self.renderableCamera+".overscan",1)
+        cmds.setAttr(self.renderableCamera+".displaySafeTitle",1)
+        cmds.setAttr(self.renderableCamera+".displaySafeAction",1)
+        cmds.setAttr(self.renderableCamera+".displayFilmGate",0)
+        cmds.setAttr(self.renderableCamera+".displayGateMask",0)
+        cmds.setAttr(self.renderableCamera+".panZoomEnabled",0)
+        cmds.setAttr(self.renderableCamera+".displayResolution",0)
+        cmds.setAttr(self.renderableCamera+".displayFieldChart",0)
+
+        self.origin = cmds.toggleAxis(q=1, o=1)
+        cmds.toggleAxis( o=0 )
+
+        huds = cmds.headsUpDisplay(listHeadsUpDisplays=True)
+        self.hud_value = {}
+        for hud in huds:
+            self.hud_value[hud] = cmds.headsUpDisplay(hud, q=1, vis=1)
+            cmds.headsUpDisplay(hud, e=1, vis=0)
+
 
     def _restorePlayblastSettings(self):
-        pass
+        if not cmds.getAttr(self.renderableCamera+".overscan") == 1.3:
+            cmds.setAttr(self.renderableCamera+".overscan",1.3)
+
+        cmds.setAttr(self.renderableCamera+".panZoomEnabled",self.panZoomSetting)
+        cmds.setAttr(self.renderableCamera+".displaySafeTitle",self.displaySafeTitle)
+        cmds.setAttr(self.renderableCamera+".displaySafeAction",self.displaySafeAction)
+        cmds.setAttr(self.renderableCamera+".overscan",self.overscan)
+        cmds.setAttr(self.renderableCamera+".displayFilmGate",self.displayFilmGate)
+        cmds.setAttr(self.renderableCamera+".displayGateMask",self.displayGateMask)
+        cmds.setAttr(self.renderableCamera+".displayResolution",self.displayResolution)
+        cmds.setAttr(self.renderableCamera+".displayFieldChart",self.displayFieldChart)
+
+
+        # reset headsUpDisplays
+        for item, value in self.hud_value.items():
+            cmds.headsUpDisplay(item, e=1, vis=value)
+        cmds.toggleAxis( o=self.origin )
+        cmds.undoInfo(swf=True)
+
 
     def runPlayblast(self):
         #return

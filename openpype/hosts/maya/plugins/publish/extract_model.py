@@ -68,6 +68,10 @@ class ExtractModel(publish.Extractor,
                           noIntermediate=True,
                           long=True)
 
+        for mesh in cmds.ls("*PLY"):
+            cmds.polyPinUV(mesh, op=2, ch=False)
+            cmds.bakePartialHistory(mesh, pre=True, ppt=True)
+
         with lib.no_display_layers(instance):
             with lib.displaySmoothness(members,
                                        divisionsU=0,

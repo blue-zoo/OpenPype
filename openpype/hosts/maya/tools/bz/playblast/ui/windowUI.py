@@ -11,7 +11,9 @@
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
-
+import importlib
+from openpype.hosts.maya.tools.bz.playblast.ui import viewportWindow
+importlib.reload(viewportWindow)
 from openpype.hosts.maya.tools.bz.playblast.ui.viewportWindow import ViewportWidget
 
 
