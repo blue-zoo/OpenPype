@@ -1718,11 +1718,13 @@ def make_rig_to_shader_connections(nodes, shader_nodes):
     def _get_namespace(node):
         # in WIP files there's no namespaces necessarily,
         # so we support that as well
-        return node.split(':')[0].strip('|') if ':' in node else ''
+        return node.split(':')[0].split('|')[-1] if ':' in node else ''
 
-    # these are sets when coming from `load_look`  v
-    nodes_namespace = _get_namespace(next(iter(nodes)))
-    shader_namespace = _get_namespace(next(iter(shader_nodes)))
+    # these are sets when coming from `load_look`                  v
+    nodes_namespaces = set([_get_namespace(node) for node in iter(nodes)])
+    nodes_namespace = sorted(nodes_namespaces, key=len, reverse=True)[0]
+    shader_namespaces = set([_get_namespace(node) for node in iter(shader_nodes)])
+    shader_namespace = sorted(shader_namespaces, key=len, reverse=True)[0]
     passthrough_node = nodes_namespace + ':C_attributePublish_LOC'
     passthrough_attr = passthrough_node + '.attributePublish'
 
