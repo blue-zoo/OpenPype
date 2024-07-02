@@ -7,6 +7,30 @@ from maya import cmds
 from openpype.pipeline import publish
 from openpype.hosts.maya.api import lib
 
+def unpinAllMeshUVs():
+   '''Unpins any all pinned UVs for all UV sets for all mesh nodes.
+   Necessary to eliminate crashes and dropped deformers.'''
+
+   # Iterate all mesh nodes
+   for mesh in cmds.ls(typ="mesh"):
+
+       # Bank orig selected set and iterate all sets
+       origSet = cmds.polyUVSet(mesh, q=1, currentUVSet=True)
+       allSets = cmds.polyUVSet(mesh, q=True, allUVSets=True)
+       for set in allSets:
+
+           # Switch active set and unpin all UVs
+           cmds.polyUVSet(mesh, currentUVSet=True, uvSet=set)
+           cmds.polyPinUV(mesh, op=2, ch=False)
+
+       # Restore original selected set if one existed; otherwise, use first set
+       # Don't ask me why no set would be selected, this just kept crashing.
+       cmds.polyUVSet(mesh, currentUVSet=True, uvSet=origSet[0] if origSet else allSets[0])
+
+       # Delete non-deformer history
+       cmds.bakePartialHistory(mesh, preDeformers=True, prePostDeformers=True)
+
+unpinAllMeshUVs()
 
 class ExtractModel(publish.Extractor,
                    publish.OptionalPyblishPluginMixin):
@@ -68,10 +92,7 @@ class ExtractModel(publish.Extractor,
                           noIntermediate=True,
                           long=True)
 
-        for mesh in cmds.ls("*PLY"):
-            cmds.polyPinUV(mesh, op=2, ch=False)
-            cmds.bakePartialHistory(mesh, pre=True, ppt=True)
-
+        unpinAllMeshUVs()
         with lib.no_display_layers(instance):
             with lib.displaySmoothness(members,
                                        divisionsU=0,
