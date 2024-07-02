@@ -6,7 +6,7 @@ import site
 import sys
 from functools import wraps
 from types import ModuleType
-from Qt import QtWidgets
+from qtpy import QtWidgets, QtCore
 
 if os.name == 'nt':
     from .windows import setCoordinatesToScreen

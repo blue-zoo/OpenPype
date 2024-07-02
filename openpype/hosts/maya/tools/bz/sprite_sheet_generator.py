@@ -3,7 +3,7 @@ import os
 import subprocess
 import glob
 import json
-from Qt import QtWidgets, QtGui, QtCore
+from qtpy import QtWidgets, QtGui, QtCore
 from functools import partial
 
 
@@ -21,7 +21,7 @@ def _executeCmdAndGetStderrAndStdout(cmd):
 
     :param cmd: a list of tokens making up the command to be called
     :returns: the output of the command
-    :raises Subprocess error: 
+    :raises Subprocess error:
     """
     # Hide the dreaded prompt popup
     startupinfo = subprocess.STARTUPINFO()
@@ -183,7 +183,7 @@ def convertImageSequenceToSpriteSheet(imgSequencePattern, outputPath, rowLength=
             inputs.append(pad)
 
     # Compile and execute the command
-    cmd = ["%s" % ffmpeg, "-y"] + inputs + [ 
+    cmd = ["%s" % ffmpeg, "-y"] + inputs + [
         "-filter_complex", "%s" % filterComplex, "-frames:v", "1", "-map",
         output, outputPath]
 
@@ -439,4 +439,3 @@ def runAsGUITool():
 
 if __name__ == "__main__":
     runAsGUITool()
-

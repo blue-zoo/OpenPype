@@ -11,7 +11,7 @@ import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from Qt import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 from .utils import hybridmethod, setCoordinatesToScreen
 from .utils.palette import savePaletteData, setPalette

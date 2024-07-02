@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-from Qt import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 class IconButton(QtWidgets.QPushButton):

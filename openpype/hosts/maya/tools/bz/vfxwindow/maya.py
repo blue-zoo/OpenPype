@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function
 
 import uuid
 from functools import partial
-from Qt import QtWidgets, QtCompat, QtCore
+from qtpy import QtWidgets,  QtCore
 
 import maya.mel as mel
 import maya.cmds as mc
@@ -51,9 +51,11 @@ def getMainWindow(windowID=None, wrapInstance=True):
             pointer = omUI.MQtUtil.findControl(windowID)
         else:
             pointer = omUI.MQtUtil.mainWindow()
-        
+
         if pointer is not None:
-            return QtCompat.wrapInstance(int(pointer), QtWidgets.QWidget)
+            from shiboken2 import wrapInstance
+
+            return wrapInstance(int(pointer), QtWidgets.QWidget)
 
     # Fallback to searching widgets
     if isinstance(windowID, QtWidgets.QWidget):
@@ -371,7 +373,7 @@ class MayaWindow(MayaCommon, AbstractWindow):
             base = self.parent()
 
         if base is None:
-            # If the window has no parent, it was probably forgotten by user so we can 
+            # If the window has no parent, it was probably forgotten by user so we can
             # assume it should be the maya main window.
             self.__parentTemp = getMainWindow()
         else:
@@ -380,7 +382,7 @@ class MayaWindow(MayaCommon, AbstractWindow):
                 self.__parentTemp = base.parent().parent().parent().parent()
             else:
                 self.__parentTemp = base.parent().parent()
-        
+
         return self.__parentTemp
 
     def floating(self):

@@ -9,7 +9,7 @@ import json
 import os
 from glob import glob
 from string import ascii_letters, digits
-from Qt import QtGui, QtWidgets
+from qtpy import QtGui, QtWidgets
 
 
 PALETTE_ROLE = QtGui.QPalette.ColorRole

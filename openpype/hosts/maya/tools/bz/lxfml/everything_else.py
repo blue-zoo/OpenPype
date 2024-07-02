@@ -1,6 +1,6 @@
 from functools import wraps
 
-from Qt import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 import maya.cmds as mc
 

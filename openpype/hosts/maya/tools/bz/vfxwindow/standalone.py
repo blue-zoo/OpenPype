@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import sys
 from functools import partial
 from multiprocessing import Queue, Process
-from Qt import QtWidgets, IsPySide, IsPyQt4, IsPySide2, IsPyQt5
+from qtpy import QtWidgets
 
 from .abstract import AbstractWindow
 from .utils import setCoordinatesToScreen, hybridmethod
@@ -37,7 +37,7 @@ class StandaloneWindow(AbstractWindow):
 
     def __init__(self, parent=None):
         super(StandaloneWindow, self).__init__(parent)
-        
+
         self.standalone = True  #: .. deprecated:: 1.9.0 Won't be needed anymore when using :property:`~AbstractWindow.software`.
 
     @property

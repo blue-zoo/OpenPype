@@ -5,7 +5,9 @@ import os
 import re
 import webbrowser
 
-from Qt import QtCompat, QtCore, QtWidgets
+from qtpy import  QtCore, QtWidgets
+from . import layoutUi
+
 from ..vfxwindow import VFXWindow
 
 from .everything_else import TemporaryCursor
@@ -20,7 +22,7 @@ def _clean_input(path):
     return path.strip('-\'" \n')
 
 
-class GUI(VFXWindow):
+class GUI(VFXWindow,layoutUi.Ui_MainWindow):
     WindowID = 'bz.lego.importer'
     WindowName = 'LEGO Importer'
     WindowDockable = False
@@ -28,8 +30,7 @@ class GUI(VFXWindow):
     def __init__(self, parent=None, **kwargs):
         super(GUI, self).__init__(parent=parent, **kwargs)
         self.setWindowPalette('maya')
-        QtCompat.loadUi(os.path.join(os.path.dirname(__file__), 'layout.ui'), self)
-
+        self.setupUi(self)
         self.xmlPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Model_Library\_importingTestA\legoExample.lxfml')
         self.geoPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Model_Library\_legoLibrary\High_processed\m')
         self.shdPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
