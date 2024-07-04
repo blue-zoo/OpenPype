@@ -162,9 +162,11 @@ class AnimationFBXLoader(plugin.Loader):
         asset = context.get('asset').get('name')
         suffix = "_CON"
         asset_name = f"{asset}_{name}" if asset else f"{name}"
+        scene_name = hierarchy[-1]
+        episode_name = hierarchy[-2]
         tools = unreal.AssetToolsHelpers().get_asset_tools()
         asset_dir, container_name = tools.create_unique_asset_name(
-            f"{root}/Animations/{asset}/{name}", suffix="")
+            f"{root}/Animations/{episode_name}/{scene_name}/{asset}/{name}", suffix="")
 
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         _filter = unreal.ARFilter(
