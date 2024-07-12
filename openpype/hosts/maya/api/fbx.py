@@ -153,7 +153,6 @@ class FBXExtractor:
         # Parse export options
         options = self.default_options
         options = self.parse_overrides(instance, options)
-        self.log.info("Export options: {0}".format(options))
 
         # Collect the start and end including handles
         start = instance.data.get("handleStart") or \
@@ -161,11 +160,17 @@ class FBXExtractor:
         end = instance.data.get("handleEnd") or \
             instance.context.data.get("frameEndHandle")
 
+
+
+        self.log.info('Exporting Fbx Start Frame as {s}'.format(s=start))
+        self.log.info('Exporting Fbx End Frame as {e}'.format(e=end))
+
         #add inclusive
         end+=1
 
         options['bakeComplexStart'] = start
         options['bakeComplexEnd'] = end
+        self.log.info("Export options: {0}".format(options))
 
         # First apply the default export settings to be fully consistent
         # each time for successive publishes

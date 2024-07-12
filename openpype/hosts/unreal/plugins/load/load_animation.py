@@ -262,8 +262,15 @@ class AnimationFBXLoader(plugin.Loader):
 
                     for s in sections:
                         s.params.set_editor_property('animation', animation)
-                        startFrame = context.get("version").get("data").get("frameStart")
-                        endFrame = context.get("version").get("data").get("frameEnd")
+                        if context.get("version").get("data").get("handleStart"):
+                            startFrame = context.get("version").get("data").get("handleStart")
+                        else:
+                            startFrame = context.get("version").get("data").get("frameStart")
+
+                        if context.get("version").get("data").get("handleEnd"):
+                            endFrame = context.get("version").get("data").get("handleEnd")
+                        else:
+                            endFrame = context.get("version").get("data").get("frameEnd")
 
                         s.set_range(startFrame,endFrame+1)
 
