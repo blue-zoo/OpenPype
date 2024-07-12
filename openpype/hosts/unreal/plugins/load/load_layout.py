@@ -567,7 +567,6 @@ class LayoutLoader(plugin.Loader):
         return output
 
     def _process(self, lib_path, asset_dir, sequence, repr_loaded=None):
-        print("DERP A DERP")
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
 
         with open(lib_path, "r") as fp:
@@ -785,7 +784,8 @@ class LayoutLoader(plugin.Loader):
             list(str): list of container content
         """
         data = get_current_project_settings()
-        create_sequences = True#data["unreal"]["level_sequences_for_layouts"]
+                                # v   the below is an AYON bundle setting, but we force it
+        create_sequences = True # data["unreal"]["level_sequences_for_layouts"]
         # Create directory for asset and Ayon container
         hierarchy = context.get('asset').get('data').get('parents')
         root = self.ASSET_ROOT
