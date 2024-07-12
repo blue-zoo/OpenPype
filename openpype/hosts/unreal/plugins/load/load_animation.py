@@ -181,22 +181,21 @@ class AnimationFBXLoader(plugin.Loader):
         for h in hierarchy:
             hierarchy_dir = f"{hierarchy_dir}/{h}"
         hierarchy_dir = f"{hierarchy_dir}/{asset}"
-        print("before",hierarchy_dir)
-        '''
+
+        # Get the "layout" field from the published animation, as we support multiple
+        # layouts, so we need to know which layout to add this animation to
         layout = context.get('representation',{}).get('context',{}).get('layout',None)
         if layout is not None:
+            # Older publishes don't have the "layout" field, so this is for compatibility
             hierarchy_dir = f"{hierarchy_dir}/{layout}"
-            print("fishy...")
-        print("Looking for ",hierarchy_dir)
-        '''
-        #TODO: Ask Vasil whats this?
+
+        # Get all levels in the specified folder
         _filter = unreal.ARFilter(
             class_names=["World"],
             package_paths=[f"{hierarchy_dir}/"],
             recursive_paths=True)
         levels = ar.get_assets(_filter)
-        for level in levels:
-            print("FOUND",level)
+
         level = levels[0].get_asset().get_path_name()
         if not replacing_AYONs_level_hierarchy:
             unreal.EditorLevelLibrary.save_all_dirty_levels()
