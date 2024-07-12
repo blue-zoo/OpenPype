@@ -195,6 +195,7 @@ class AnimationFBXLoader(plugin.Loader):
             package_paths=[f"{hierarchy_dir}/"],
             recursive_paths=True)
         levels = ar.get_assets(_filter)
+        for level in levels:
             print("FOUND",level)
         level = levels[0].get_asset().get_path_name()
         if not replacing_AYONs_level_hierarchy:
