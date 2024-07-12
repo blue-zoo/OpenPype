@@ -196,6 +196,9 @@ class AnimationFBXLoader(plugin.Loader):
             recursive_paths=True)
         levels = ar.get_assets(_filter)
 
+        if not levels:
+            raise RuntimeError('Could not find level to load the animation in. Has its layout been loaded?')
+
         level = levels[0].get_asset().get_path_name()
         if not replacing_AYONs_level_hierarchy:
             unreal.EditorLevelLibrary.save_all_dirty_levels()
