@@ -713,6 +713,7 @@ class LayoutLoader(plugin.Loader):
             animation_file = element.get('animation')
 
             if animation_file and skeleton:
+                raise NotImplementedError("Skeleton and Animation File Present in Layout.")
                 self._import_animation(
                     asset_dir, path, instance_name, skeleton, actors_dict,
                     animation_file, bindings_dict, sequence)
@@ -783,7 +784,8 @@ class LayoutLoader(plugin.Loader):
             list(str): list of container content
         """
         data = get_current_project_settings()
-        create_sequences = data["unreal"]["level_sequences_for_layouts"]
+                                # v   the below is an AYON bundle setting, but we force it
+        create_sequences = True # data["unreal"]["level_sequences_for_layouts"]
         # Create directory for asset and Ayon container
         hierarchy = context.get('asset').get('data').get('parents')
         root = self.ASSET_ROOT
@@ -794,7 +796,7 @@ class LayoutLoader(plugin.Loader):
             hierarchy_dir_list.append(hierarchy_dir)
         asset = context.get('asset').get('name')
         suffix = "_CON"
-        asset_name = f"{asset}_{name}" if asset else name
+        asset_name = name#f"{asset}_{name}" if asset else name
         tools = unreal.AssetToolsHelpers().get_asset_tools()
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
 
@@ -804,7 +806,7 @@ class LayoutLoader(plugin.Loader):
         container_name += suffix
         EditorAssetLibrary.make_directory(asset_dir)
 
-        asset_subset = f'{asset}_{container_name[:-4]}'
+        asset_subset = name
 
         master_level = None
         shot = None

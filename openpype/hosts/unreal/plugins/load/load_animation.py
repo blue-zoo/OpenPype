@@ -162,9 +162,11 @@ class AnimationFBXLoader(plugin.Loader):
         asset = context.get('asset').get('name')
         suffix = "_CON"
         asset_name = f"{asset}_{name}" if asset else f"{name}"
+        scene_name = hierarchy[-1]
+        episode_name = hierarchy[-2]
         tools = unreal.AssetToolsHelpers().get_asset_tools()
         asset_dir, container_name = tools.create_unique_asset_name(
-            f"{root}/Animations/{asset}/{name}", suffix="")
+            f"{root}/Animations/{episode_name}/{scene_name}/{asset}/{name}", suffix="")
 
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         _filter = unreal.ARFilter(
@@ -179,9 +181,15 @@ class AnimationFBXLoader(plugin.Loader):
         for h in hierarchy:
             hierarchy_dir = f"{hierarchy_dir}/{h}"
         hierarchy_dir = f"{hierarchy_dir}/{asset}"
+
+        # Get the "layout" field from the published animation, as we support multiple
+        # layouts, so we need to know which layout to add this animation to
         layout = context.get('representation',{}).get('context',{}).get('layout',None)
         if layout is not None:
+            # Older publishes don't have the "layout" field, so this is for compatibility
             hierarchy_dir = f"{hierarchy_dir}/{layout}"
+
+        # Get all levels in the specified folder
         _filter = unreal.ARFilter(
             class_names=["World"],
             package_paths=[f"{hierarchy_dir}/"],
@@ -189,7 +197,6 @@ class AnimationFBXLoader(plugin.Loader):
         levels = ar.get_assets(_filter)
 
         level = levels[0].get_asset().get_path_name()
-
         if not replacing_AYONs_level_hierarchy:
             unreal.EditorLevelLibrary.save_all_dirty_levels()
             unreal.EditorLevelLibrary.load_level(level)
