@@ -155,11 +155,15 @@ class FBXExtractor:
         options = self.parse_overrides(instance, options)
 
         # Collect the start and end including handles
-        start = instance.data.get("handleStart") or \
-            instance.context.data.get("frameStartHandle")
-        end = instance.data.get("handleEnd") or \
-            instance.context.data.get("frameEndHandle")
+        if instance.context.data.get("handleStart"):
+            start = instance.context.data.get("handleStart")
+        else:
+            start = instance.data.get("frameStart") - 100
 
+        if instance.context.data.get("handleEnd"):
+            end = instance.context.data.get("handleEnd")
+        else:
+            end = instance.data.get("frameEnd") + 100
 
 
         self.log.info('Exporting Fbx Start Frame as {s}'.format(s=start))
