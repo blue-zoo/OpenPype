@@ -157,13 +157,18 @@ class FBXExtractor:
         # Collect the start and end including handles
         if instance.context.data.get("handleStart"):
             start = instance.context.data.get("handleStart")
-        else:
+        elif instance.data.get("frameStart"):
             start = instance.data.get("frameStart") - 100
+        else:
+            start = options['bakeComplexStart']
+
 
         if instance.context.data.get("handleEnd"):
             end = instance.context.data.get("handleEnd")
-        else:
+        elif instance.data.get("frameEnd"):
             end = instance.data.get("frameEnd") + 100
+        else:
+            end = options['bakeComplexEnd']
 
 
         self.log.info('Exporting Fbx Start Frame as {s}'.format(s=start))
