@@ -265,12 +265,12 @@ class AnimationFBXLoader(plugin.Loader):
                         if context.get("version").get("data").get("handleStart"):
                             startFrame = context.get("version").get("data").get("handleStart")
                         else:
-                            startFrame = context.get("version").get("data").get("frameStart")
+                            startFrame = context.get("version").get("data").get("frameStart")-100
 
                         if context.get("version").get("data").get("handleEnd"):
                             endFrame = context.get("version").get("data").get("handleEnd")
                         else:
-                            endFrame = context.get("version").get("data").get("frameEnd")
+                            endFrame = context.get("version").get("data").get("frameEnd")+100
 
                         s.set_range(startFrame,endFrame+1)
 
