@@ -204,6 +204,7 @@ class CameraLoader(plugin.Loader):
                     self.log.warning(f"Camera already imported in {shot['levelPath']}, use updater to manage")
                     skip = True
                     break
+                del _a # keeping a reference to _a causes a crash on the next `for shot in shotLevels` iter
 
             # We get crashes when we try to open a new level after loading a camera
             # because we never actually loaded the layout level before, so we do it here
@@ -282,6 +283,7 @@ class CameraLoader(plugin.Loader):
                 "family": context["representation"]["context"]["family"]
             }
             imprint(f"{shotLevelFolder}/{container_name}", data)
+            del container # keeping a reference to `container` causes a crash on the next `for shot in shotLevels` iter
 
 
 
