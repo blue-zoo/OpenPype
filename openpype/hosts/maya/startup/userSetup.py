@@ -81,4 +81,22 @@ if not cmds.about(batch=1):
     # Add the playblast menu items (on evaluate deferred)
     addPlayblastMenu()
 
+# Load analytics
+try:
+    from openpype.hosts.maya.tools.bz.analytics.actions import maya as analytics
+    analytics_session_id = analytics.register_callbacks()
+    if analytics_session_id is None:
+        print('[Analytics] Failed to start session.')
+    else:
+        print('[Analytics] Started session: {}'.format(analytics_session_id))
+
+    from openpype.hosts.maya.tools.bz.analytics.scripts import maya_open_scenes
+    maya_open_scenes.register_callbacks()
+    print('[Analytics] Registered open scene check.')
+
+# Errors shouldn't happen, but it's not vital so just ignore if so
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+
 print("Finished OpenPype BZ usersetup.")
