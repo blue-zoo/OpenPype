@@ -107,6 +107,7 @@ class FBXExtractor:
             "upAxis": "y",
             "triangulate": False,
             "inAscii": True,
+            "applyConstantKeyReducer":False
         }
 
     def __init__(self, log=None):
