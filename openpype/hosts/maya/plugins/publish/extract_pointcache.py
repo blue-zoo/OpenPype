@@ -211,6 +211,25 @@ class ExtractAnimation(ExtractAlembic):
             instance.data["upAxis"]="z"
             fbx_exporter.set_options_from_instance(instance)
 
+            # Bake the animation to the joints and set the interpolation type
+            # to "step" as unhelpfully Unreal, even when asked not to interpolate
+            # between keys will do so if the interpolation in the FBX file
+            # is anything other than stepped.
+            if instance.context.data.get("handleStart"):
+                start = instance.context.data.get("handleStart")
+            else:
+                start = instance.data.get("frameStart") - 100
+
+            if instance.context.data.get("handleEnd"):
+                end = instance.context.data.get("handleEnd")
+            else:
+                end = instance.data.get("frameEnd") + 100
+
+            cmds.select(joints_to_export)
+            cmds.bakeResults(preserveOutsideKeys=True, time=(start,end))
+            cmds.keyTangent(joints_to_export, ott='step')
+
+            # Export
             fbx_exporter.export(joints_to_export, fbxpath.replace("\\","/"))
 
             # Get Namespace to store in publish representation
