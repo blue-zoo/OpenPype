@@ -859,6 +859,40 @@ class LayoutLoader(plugin.Loader):
             sequence_levelSeq.set_view_range_start(sequence_frame_range[0] / fps)
             sequence_levelSeq.set_view_range_end(sequence_frame_range[1] / fps)
 
+            # Add the timer MPC sequence
+            # NOTE: this is an asset that we want to be present in all of our sequences
+            # so we hardcode it here in the continuity sequence, which itself gets streamed
+            # in each shot
+            timer_sequence = EditorAssetLibrary.load_asset(
+                '/Game/MasterMaterials/MaterialParameterCollections/SEQ_FrameTimer')
+
+            if timer_sequence is None:
+                # Let's make sure that if we just roll onto another project, we don't
+                # get errors because of hardcoded names.
+                # Ideally, we should expose this as a setting on the Ayon website, so
+                # that we can populate a list with paths that we want loaded by default
+                # into our continuity sequences.
+                # TODO
+                self.log.error('Could not find SEQ_FrameTimer. Skipping adding it to CONTINUTIY sequence...')
+            else:
+                subscene_track = next(iter(
+                    sequence_levelSeq.find_tracks_by_exact_type(unreal.MovieSceneSubTrack) + [None]))
+
+                if subscene_track is None:
+                    subscene_track = sequence_levelSeq.add_master_track(unreal.MovieSceneSubTrack)
+
+                subsection = None
+                for section in subscene_track.get_sections():
+                    if section.get_editor_property('sub_sequence') == timer_sequence:
+                        subsection = section
+                        break
+
+                if not subsection:
+                    subsection = subscene_track.add_section()
+                    subsection.set_editor_property('sub_sequence', timer_sequence)
+                    subsection.set_row_index(len(subscene_track.get_sections()))
+                    subsection.set_range(0, 10000) # hardcode a range large enough to cover a full episode
+
             # Ensure the sequence level exists as well
             if not EditorAssetLibrary.does_asset_exist(sequence_level_path.as_posix()):
                 EditorLevelLibrary.new_level(sequence_level_path.as_posix())
