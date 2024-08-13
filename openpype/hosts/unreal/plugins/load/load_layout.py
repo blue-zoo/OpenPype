@@ -991,6 +991,9 @@ class LayoutLoader(plugin.Loader):
 
             ## FIXME use existing levels
 
+            project_name = get_current_project_name()
+            data = get_asset_by_name(project_name, asset)["data"]
+
             # If shot does nt ex
             if not shot:
                 shot = tools.create_asset(
@@ -999,6 +1002,7 @@ class LayoutLoader(plugin.Loader):
                     asset_class=unreal.LevelSequence,
                     factory=unreal.LevelSequenceFactoryNew()
                     )
+                shot.set_tick_resolution(unreal.FrameRate(data.get('fps'),1.0))
                 self.log.warning("Made new shot :"+str(shot.get_name()))
 
             else:
@@ -1012,8 +1016,6 @@ class LayoutLoader(plugin.Loader):
                     frame_ranges[i + 1][0], frame_ranges[i + 1][1],
                     [level])
 
-            project_name = get_current_project_name()
-            data = get_asset_by_name(project_name, asset)["data"]
             shot.set_display_rate(
                 unreal.FrameRate(data.get("fps"), 1.0))
             shot.set_playback_start(data.get('frameStart'))
