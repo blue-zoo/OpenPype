@@ -10,6 +10,7 @@ from unreal import MovieSceneSkeletalAnimationTrack
 from unreal import MovieSceneSkeletalAnimationSection
 
 from openpype.pipeline.context_tools import get_current_project_asset
+from openpype.client import get_version_by_id
 from openpype.pipeline import (
     get_representation_path,
     AYON_CONTAINER_ID
@@ -30,7 +31,11 @@ class AnimationFBXLoader(plugin.Loader):
     icon = "cube"
     color = "orange"
 
-    def _process(self, path, asset_dir, asset_name, instance_name):
+    def _process(self, path, asset_dir, asset_name, instance_name, instance_data):
+        if not instance_data:
+            raise RuntimeError('Unexpected error retrieving frame range data. '
+                               'Please submit ticket with the full error.')
+
         automated = False
         actor = None
 
@@ -82,7 +87,16 @@ class AnimationFBXLoader(plugin.Loader):
 
         task.options.anim_sequence_import_data.set_editor_property(
             'animation_length',
-            unreal.FBXAnimationLengthImportType.FBXALIT_ANIMATED_KEY
+            unreal.FBXAnimationLengthImportType.FBXALIT_SET_RANGE
+        )
+        task.options.anim_sequence_import_data.set_editor_property(
+            'frame_import_range',
+            (
+                (instance_data["frameStart"]-100)
+                 if not instance_data.get("handleStart") else instance_data.get("handleStart"),
+                (instance_data["frameEnd"]+100)
+                 if not instance_data.get("handleEnd") else instance_data.get("handleEnd")
+            )
         )
         task.options.anim_sequence_import_data.set_editor_property(
             'import_meshes_in_bone_hierarchy', False)
@@ -217,7 +231,8 @@ class AnimationFBXLoader(plugin.Loader):
 
         EditorAssetLibrary.make_directory(asset_dir)
         path = self.filepath_from_context(context)
-        animation = self._process(path, asset_dir, asset_name, instance_name)
+        animation = self._process(path, asset_dir, asset_name, instance_name,
+                                  context['version']['data'])
 
         asset_content = EditorAssetLibrary.list_assets(
             hierarchy_dir, recursive=True, include_folder=False)
@@ -322,6 +337,9 @@ class AnimationFBXLoader(plugin.Loader):
         source_path = get_representation_path(representation)
         asset_doc = get_current_project_asset(fields=["data.fps"])
         destination_path = container["namespace"]
+        instance_data = get_version_by_id(
+            representation['context']['project']['name'],
+            representation['parent'])['data']
 
         task = unreal.AssetImportTask()
         task.options = unreal.FbxImportUI()
@@ -347,7 +365,16 @@ class AnimationFBXLoader(plugin.Loader):
 
         task.options.anim_sequence_import_data.set_editor_property(
             'animation_length',
-            unreal.FBXAnimationLengthImportType.FBXALIT_EXPORTED_TIME
+            unreal.FBXAnimationLengthImportType.FBXALIT_SET_RANGE
+        )
+        task.options.anim_sequence_import_data.set_editor_property(
+            'frame_import_range',
+            (
+                (instance_data["frameStart"]-100)
+                 if not instance_data.get("handleStart") else instance_data.get("handleStart"),
+                (instance_data["frameEnd"]+100)
+                 if not instance_data.get("handleEnd") else instance_data.get("handleEnd")
+            )
         )
         task.options.anim_sequence_import_data.set_editor_property(
             'import_meshes_in_bone_hierarchy', False)
