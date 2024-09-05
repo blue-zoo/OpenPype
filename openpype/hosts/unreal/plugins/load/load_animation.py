@@ -169,6 +169,13 @@ class AnimationFBXLoader(plugin.Loader):
         Returns:
             list(str): list of container content
         """
+        # Always start by saving everything, so if we get an error or crash
+        # during loading we have saved our changes, but also to make sure
+        # that people push EVERYTHING on perforce and never have to
+        # mark for add
+        # NOTE: We will also end with doing the same thing.
+        unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True,True)
+
         # Create directory for asset and Ayon container
 
         hierarchy = context.get('asset').get('data').get('parents')
@@ -327,6 +334,13 @@ class AnimationFBXLoader(plugin.Loader):
 
             for a in imported_content:
                 EditorAssetLibrary.save_asset(a)
+
+        # Always end by saving everything, so if we've missed saving something
+        # that gets brought in during loading a layout, we ensure that it is
+        # saved, so that we ensure people are always pushing EVERYTHING
+        # on perforce and never have to mark for add
+        # NOTE: We will also end with doing the same thing.
+        unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True,True)
 
         unreal.EditorLevelLibrary.save_current_level()
         if not replacing_AYONs_level_hierarchy:
