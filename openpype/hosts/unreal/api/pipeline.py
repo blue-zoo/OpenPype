@@ -56,7 +56,10 @@ class UnrealHost(HostBase, ILoadHost, IPublishHost):
     def install(self):
         install()
 
-    def get_containers(self):
+    def get_containers(self,selected=False):
+        print("getting containers",selected)
+        if selected:
+            print("Isolating Update to selected")
         return ls()
 
     @staticmethod

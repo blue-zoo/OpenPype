@@ -833,6 +833,7 @@ def get_outdated_containers(host=None, project_name=None):
         host (ModuleType): Host implementation with 'ls' function available.
         project_name (str): Name of project in which context we are.
     """
+    print("get_outdated_containers")
 
     if host is None:
         from openpype.pipeline import registered_host
@@ -843,6 +844,7 @@ def get_outdated_containers(host=None, project_name=None):
         project_name = legacy_io.active_project()
 
     if isinstance(host, ILoadHost):
+        print("if isinstance(host, ILoadHost):")
         containers = host.get_containers()
     else:
         containers = host.ls()

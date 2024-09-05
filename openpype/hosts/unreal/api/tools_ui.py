@@ -50,7 +50,7 @@ class ToolsBtnsWidget(QtWidgets.QWidget):
         self.tool_required.emit("publisher")
 
     def _on_manage(self):
-        self.tool_required.emit("sceneinventory")
+        self.tool_required.emit("sceneinventory_unreal")
 
     def _on_render(self):
         rendering.start_rendering()
