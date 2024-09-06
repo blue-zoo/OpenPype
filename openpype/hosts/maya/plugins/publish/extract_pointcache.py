@@ -211,6 +211,24 @@ class ExtractAnimation(ExtractAlembic):
             instance.data["upAxis"]="z"
             fbx_exporter.set_options_from_instance(instance)
 
+            # Let's ensure we clear any reference edits that affect realtime
+            # joints, as they are meant to be ephemeral i.e.
+            # the realtime joints should never have any reference edits maintained
+            # between republishing.
+            #
+            # The reason for that is we bake the realtime joints, so that breaks all
+            # constraints going into them and next time we republish we essentially
+            # get the same animation as the previous time.
+            #
+            # This prevents that.
+            cmds.file(unloadReference=rig_reference_node)
+            for jnt in joints_to_export:
+                for command in ['connectAttr','disconnectAttr']:
+                    cmds.referenceEdit(jnt, removeEdits=1, fld=1, scs=1,
+                                       editCommand=command,
+                                       onReferenceNode=rig_reference_node)
+            cmds.file(loadReference=rig_reference_node)
+
             # Bake the animation to the joints and set the interpolation type
             # to "step" as unhelpfully Unreal, even when asked not to interpolate
             # between keys will do so if the interpolation in the FBX file
@@ -226,7 +244,7 @@ class ExtractAnimation(ExtractAlembic):
                 end = instance.data.get("frameEnd") + 100
 
             cmds.select(joints_to_export)
-            cmds.bakeResults(preserveOutsideKeys=True, time=(start,end))
+            cmds.bakeResults(preserveOutsideKeys=True, time=(start,end), simulation=True)
             cmds.keyTangent(joints_to_export, ott='step')
 
             # Export
