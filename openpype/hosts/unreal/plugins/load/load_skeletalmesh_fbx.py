@@ -74,7 +74,8 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         #
         # FIXME - Does not load fbx if folder exists, should check if subassets of folder exist
 
-        if not unreal.EditorAssetLibrary.does_directory_exist(asset_dir):
+        if not (unreal.EditorAssetLibrary.does_asset_exist(asset_dir + '/' + asset_name)
+                and unreal.EditorAssetLibrary.does_asset_exist(asset_dir + '/' + asset_name + '_Skeleton')):
             unreal.EditorAssetLibrary.make_directory(asset_dir)
 
             task = unreal.AssetImportTask()
@@ -83,7 +84,7 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             task.set_editor_property('filename', path)
             task.set_editor_property('destination_path', asset_dir)
             task.set_editor_property('destination_name', asset_name)
-            task.set_editor_property('replace_existing', False)
+            task.set_editor_property('replace_existing', True)
             task.set_editor_property('automated', True)
             task.set_editor_property('save', False)
 
@@ -190,8 +191,10 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                         unreal.Paths.combine([asset_dir, bp_name]))
 
             # Create Asset Container
-            unreal_pipeline.create_container(
-                container=container_name, path=asset_dir)
+            if not unreal.EditorAssetLibrary.does_asset_exist(
+                    asset_dir + '/' + container_name):
+                unreal_pipeline.create_container(
+                    container=container_name, path=asset_dir)
 
 
         data = {
