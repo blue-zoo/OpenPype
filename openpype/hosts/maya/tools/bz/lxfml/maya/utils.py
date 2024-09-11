@@ -13,3 +13,12 @@ def getSceneBricks():
     """
     nodes = (node.rsplit('.', 1)[0] for node in mc.ls('*.LEGO_importData'))
     return [node for node in nodes if mc.listRelatives(node, children=True, type='mesh')]
+
+
+def scaleObject(obj, scaleFactor):
+    """Scale an object by a factor."""
+    scalePivot = mc.xform(obj, query=True, scalePivot=True, worldSpace=True)
+    mc.xform(obj, scalePivot=[0, 0, 0], worldSpace=1)
+    mc.xform(obj, scale=[scaleFactor, scaleFactor, scaleFactor], worldSpace=True, relative=True)
+    mc.xform(obj, scalePivot=[x * scaleFactor for x in scalePivot], worldSpace=True)
+    mc.makeIdentity(obj, apply=True, translate=True, rotate=True, scale=True, normal=False, preserveNormals=True)

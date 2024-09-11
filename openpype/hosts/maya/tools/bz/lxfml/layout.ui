@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>666</width>
-    <height>663</height>
+    <height>691</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -297,6 +297,31 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
           </widget>
          </item>
         </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="scaleGrp">
+      <property name="title">
+       <string>Set Scale</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QDoubleSpinBox" name="scaleValue">
+         <property name="suffix">
+          <string>x</string>
+         </property>
+         <property name="maximum">
+          <double>100000.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>20.000000000000000</double>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

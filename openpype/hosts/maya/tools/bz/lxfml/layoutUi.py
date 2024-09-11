@@ -20,7 +20,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(666, 663)
+        MainWindow.resize(666, 691)
         sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -162,6 +162,21 @@ class Ui_MainWindow(object):
 
 
         self.verticalLayout_3.addWidget(self.geoGrp)
+
+        self.scaleGrp = QGroupBox(self.centralwidget)
+        self.scaleGrp.setObjectName(u"scaleGrp")
+        self.scaleGrp.setCheckable(True)
+        self.horizontalLayout_3 = QHBoxLayout(self.scaleGrp)
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.scaleValue = QDoubleSpinBox(self.scaleGrp)
+        self.scaleValue.setObjectName(u"scaleValue")
+        self.scaleValue.setMaximum(100000.000000000000000)
+        self.scaleValue.setValue(20.000000000000000)
+
+        self.horizontalLayout_3.addWidget(self.scaleValue)
+
+
+        self.verticalLayout_3.addWidget(self.scaleGrp)
 
         self.shdGrp = QGroupBox(self.centralwidget)
         self.shdGrp.setObjectName(u"shdGrp")
@@ -497,6 +512,8 @@ class Ui_MainWindow(object):
         self.updateDisplayColourChannel.setStatusTip(QCoreApplication.translate("MainWindow", u" Set the display colour channel to diffuse.", None))
 #endif // QT_CONFIG(statustip)
         self.updateDisplayColourChannel.setText(QCoreApplication.translate("MainWindow", u"Set Diffuse Colour Channel", None))
+        self.scaleGrp.setTitle(QCoreApplication.translate("MainWindow", u"Set Scale", None))
+        self.scaleValue.setSuffix(QCoreApplication.translate("MainWindow", u"x", None))
         self.shdGrp.setTitle(QCoreApplication.translate("MainWindow", u"Assign Shaders", None))
 #if QT_CONFIG(tooltip)
         self.shdPath.setToolTip(QCoreApplication.translate("MainWindow", u"Path to the shaders file.", None))

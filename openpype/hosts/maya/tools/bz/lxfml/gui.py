@@ -218,6 +218,13 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
                 logger.exception(e)
                 failed.append(e)
 
+        if self.scaleGrp.isChecked():
+            try:
+                self.runScaleBricks(self.scaleValue.value())
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(e)
+                failed.append(e)
+
         if self.shdGrp.isChecked():
             try:
                 self.runAssignShaders()
@@ -287,6 +294,12 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
         # Update switch validation
         self.lsShaderSwitch()
         self.lsMaskSwitch()
+
+    @TemporaryCursor()
+    def runScaleBricks(self, scale):
+        from .maya.utils import getSceneBricks, scaleObject
+        for brick in getSceneBricks():
+            scaleObject(brick, scale)
 
     @TemporaryCursor()
     def runApplyPalette(self):
