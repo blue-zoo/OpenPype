@@ -192,6 +192,31 @@ class HostToolsHelper:
 
         return self._scene_inventory_tool
 
+    def get_scene_inventory_tool_unreal(self, parent):
+        """Create, cache and return scene inventory tool window."""
+        if self._scene_inventory_tool is None:
+            host = registered_host()
+            ILoadHost.validate_load_methods(host)
+
+            if AYON_SERVER_ENABLED:
+                from openpype.tools.ayon_sceneinventory_unreal.window import (
+                    SceneInventoryWindow)
+
+                scene_inventory_window = SceneInventoryWindow(
+                    parent=parent or self._parent
+                )
+
+            else:
+                from openpype.tools.ayon_sceneinventory_unreal import SceneInventoryWindow
+
+                scene_inventory_window = SceneInventoryWindow(
+                    parent=parent or self._parent
+                )
+            self._scene_inventory_tool = scene_inventory_window
+
+        return self._scene_inventory_tool
+
+
     def show_scene_inventory(self, parent=None):
         """Show tool maintain loaded containers."""
         with qt_app_context():
@@ -203,6 +228,22 @@ class HostToolsHelper:
             scene_inventory_tool.raise_()
             scene_inventory_tool.activateWindow()
             scene_inventory_tool.showNormal()
+
+    def show_scene_inventory_unreal(self, parent=None):
+        """Show tool maintain loaded containers."""
+        with qt_app_context():
+            scene_inventory_tool = self.get_scene_inventory_tool_unreal(parent)
+            scene_inventory_tool.show()
+            scene_inventory_tool.refresh()
+
+            # Pull window to the front.
+            scene_inventory_tool.raise_()
+            scene_inventory_tool.activateWindow()
+            scene_inventory_tool.showNormal()
+
+
+
+
 
     def get_library_loader_tool(self, parent):
         """Create, cache and return library loader tool window."""
@@ -371,6 +412,10 @@ class HostToolsHelper:
         elif tool_name == "sceneinventory":
             self.show_scene_inventory(parent, *args, **kwargs)
 
+        elif tool_name == "sceneinventory_unreal":
+            print(123)
+            self.show_scene_inventory_unreal(parent, *args, **kwargs)
+
         elif tool_name == "publish":
             self.show_publish(parent, *args, **kwargs)
 
@@ -445,6 +490,9 @@ def show_subset_manager(parent=None):
 
 
 def show_scene_inventory(parent=None):
+    _SingletonPoint.show_tool_by_name("sceneinventory", parent)
+
+def show_scene_inventory_unreal(parent=None):
     _SingletonPoint.show_tool_by_name("sceneinventory", parent)
 
 

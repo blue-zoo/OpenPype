@@ -56,7 +56,9 @@ class UnrealHost(HostBase, ILoadHost, IPublishHost):
     def install(self):
         install()
 
-    def get_containers(self):
+    def get_containers(self,selected=False):
+        if selected:
+            return ls_selected()
         return ls()
 
     @staticmethod
@@ -173,6 +175,34 @@ def ls():
     # load asset. get_tag_values() work only on metadata registered in
     # Asset Registry Project settings (and there is no way to set it with
     # python short of editing ini configuration file).
+    for asset_data in ayon_containers:
+        asset = asset_data.get_asset()
+        data = unreal.EditorAssetLibrary.get_metadata_tag_values(asset)
+        data["objectName"] = asset_data.asset_name
+        yield cast_map_to_str_dict(data)
+
+def ls_selected():
+    """List all containers.
+
+    List all found in *Content Manager* of Unreal and return
+    metadata from them. Adding `objectName` to set.
+
+    Redirected in unreal from the "ls" function. Will only reveal the objects
+    based on the selection in the browser.
+
+    """
+
+    ar = unreal.AssetRegistryHelpers.get_asset_registry()
+
+    selectedPath = unreal.EditorUtilityLibrary.get_current_content_browser_item_path()
+    selectedPathResolved = selectedPath.get_internal_path()
+    allChildAssets = ar.get_assets_by_path(selectedPathResolved, recursive=True )
+    ayon_containers = []
+    for childAsset in allChildAssets:
+        if childAsset.get_class().get_name() == "AyonAssetContainer":
+            ayon_containers.append(childAsset)
+
+
     for asset_data in ayon_containers:
         asset = asset_data.get_asset()
         data = unreal.EditorAssetLibrary.get_metadata_tag_values(asset)
@@ -650,8 +680,6 @@ def set_sequence_hierarchy(
 
 def generate_sequence(h, h_dir):
     tools = unreal.AssetToolsHelpers().get_asset_tools()
-    print("h",h)
-    print("h_dir",h_dir)
     sequence = tools.create_asset(
         asset_name=h,
         package_path=h_dir,
