@@ -57,9 +57,7 @@ class UnrealHost(HostBase, ILoadHost, IPublishHost):
         install()
 
     def get_containers(self,selected=False):
-        print("getting containers",selected)
         if selected:
-            print("Isolating Update to selected")
             return ls_selected()
         return ls()
 
@@ -682,8 +680,6 @@ def set_sequence_hierarchy(
 
 def generate_sequence(h, h_dir):
     tools = unreal.AssetToolsHelpers().get_asset_tools()
-    print("h",h)
-    print("h_dir",h_dir)
     sequence = tools.create_asset(
         asset_name=h,
         package_path=h_dir,

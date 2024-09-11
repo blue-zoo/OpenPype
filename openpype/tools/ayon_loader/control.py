@@ -344,7 +344,6 @@ class LoaderController(BackendLoaderController, FrontendLoaderController):
 
         if not self._loaded_products_cache.is_valid:
             if isinstance(self._host, ILoadHost):
-                print("erm okay what?")
                 containers = self._host.get_containers()
             else:
                 containers = self._host.ls()
