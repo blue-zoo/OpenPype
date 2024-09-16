@@ -51,7 +51,7 @@ class ValidateInstanceLength(pyblish.api.InstancePlugin,
         _subset = instance.data.get("subset")
         path = self.getFilePathLength(instance,_subset)
 
-        if len(path) > 260:
+        if len(path) > 259:
             mess = "Instance '{m}' Publish Set Name will make a file path greater than 260 ".format(m=instance.name)
             raise PublishValidationError(
                 message=mess,
