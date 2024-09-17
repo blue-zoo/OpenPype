@@ -68,7 +68,7 @@ class ValidateInstanceLength(pyblish.api.InstancePlugin,
 
         _subsetName = copy.copy( instance.data.get("instance_node"))
         _subsetNamNoAnimation = _subsetName
-        while(  len(cls.getFilePathLength(instance,_subsetNamNoAnimation)) > 260 and not doesExist(_subsetNamNoAnimation) ):
+        while(  len(cls.getFilePathLength(instance,_subsetNamNoAnimation)) > 259 and not doesExist(_subsetNamNoAnimation) ):
             _subsetNamNoAnimation = _subsetNamNoAnimation[ 0: len(_subsetNamNoAnimation)-1 ]
 
         cmds.setAttr(_subsetName+".subset",_subsetNamNoAnimation,type="string")
