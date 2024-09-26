@@ -1081,7 +1081,7 @@ class LayoutLoader(plugin.Loader):
         imprint(
             "{}/{}".format(asset_dir, container_name), data)
 
-        save_dir = hierarchy_dir_list[0] if create_sequences else asset_dir
+        save_dir = asset_dir
 
         asset_content = EditorAssetLibrary.list_assets(
             save_dir, recursive=True, include_folder=False)
