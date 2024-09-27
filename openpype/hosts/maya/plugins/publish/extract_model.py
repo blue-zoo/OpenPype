@@ -30,7 +30,7 @@ def unpinAllMeshUVs():
        # Delete non-deformer history
        cmds.bakePartialHistory(mesh, preDeformers=True, prePostDeformers=True)
 
-unpinAllMeshUVs()
+#unpinAllMeshUVs()
 
 class ExtractModel(publish.Extractor,
                    publish.OptionalPyblishPluginMixin):
