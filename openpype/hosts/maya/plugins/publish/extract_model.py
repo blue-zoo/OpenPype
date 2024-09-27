@@ -3,33 +3,62 @@
 import os
 
 from maya import cmds
+from maya import cmds as mc
 
 from openpype.pipeline import publish
 from openpype.hosts.maya.api import lib
 
 def unpinAllMeshUVs():
-   '''Unpins any all pinned UVs for all UV sets for all mesh nodes.
-   Necessary to eliminate crashes and dropped deformers.'''
+    '''Unpins any all pinned UVs for all UV sets for all mesh nodes.
+    Necessary to eliminate crashes and dropped deformers.'''
 
-   # Iterate all mesh nodes
-   for mesh in cmds.ls(typ="mesh"):
+    # Iterate all mesh nodes
+    for mesh in mc.ls(typ="mesh"):
 
-       # Bank orig selected set and iterate all sets
-       origSet = cmds.polyUVSet(mesh, q=1, currentUVSet=True)
-       allSets = cmds.polyUVSet(mesh, q=True, allUVSets=True)
-       for set in allSets:
+        # NOTE Before we can force-unpin and delete history we need to cache any incoming
+        # mesh connections. We must disconnect these before deleting history, and restore
+        # them afterwards. This process has potential so slow down publishing, but this
+        # is very unlikely to become a bottleneck unless a model scene contains hundreds
+        # of proxies or FX caches.
 
-           # Switch active set and unpin all UVs
-           cmds.polyUVSet(mesh, currentUVSet=True, uvSet=set)
-           cmds.polyPinUV(mesh, op=2, ch=False)
+        # This step MUST be implemented in order to support necessary construction history
+        # such as RedshiftProxyMesh and AlembicNode nodes.
 
-       # Restore original selected set if one existed; otherwise, use first set
-       # Don't ask me why no set would be selected, this just kept crashing.
-       cmds.polyUVSet(mesh, currentUVSet=True, uvSet=origSet[0] if origSet else allSets[0])
+        # Get incoming inMesh connections
+        inMeshAttr = "{}.inMesh".format(mesh)
+        inMeshSourcePlug = mc.listConnections(inMeshAttr, source=True, plugs=True)
+        if inMeshSourcePlug:
+            inMeshSourcePlug = inMeshSourcePlug[0]
 
-       # Delete non-deformer history
-       cmds.bakePartialHistory(mesh, preDeformers=True, prePostDeformers=True)
+            # Keep locked state and unlock if locked
+            isLocked = mc.getAttr(inMeshAttr, lock=True)
+            if isLocked:
+                mc.setAttr(inMeshAttr, lock=False)
 
+            # Disconnect incoming mesh attr
+            mc.disconnectAttr(inMeshSourcePlug, inMeshAttr)
+
+        # Bank orig selected set and iterate all sets
+        origSet = mc.polyUVSet(mesh, q=1, currentUVSet=True)
+        allSets = mc.polyUVSet(mesh, q=True, allUVSets=True)
+        for set in allSets:
+
+            # Switch active set and unpin all UVs
+            mc.polyUVSet(mesh, currentUVSet=True, uvSet=set)
+            mc.polyPinUV(mesh, op=2, ch=False)
+
+        # Restore original selected set if one existed; otherwise, use first set
+        # Don't ask me why no set would be selected, this just kept crashing.
+        mc.polyUVSet(mesh, currentUVSet=True, uvSet=origSet[0] if origSet else allSets[0])
+
+        # Delete non-deformer history
+        mc.bakePartialHistory(mesh, preDeformers=True, prePostDeformers=True)
+
+        # Restore connection and locked state if necessary
+        if inMeshSourcePlug:
+            mc.connectAttr(inMeshSourcePlug, inMeshAttr)
+            if isLocked:
+                mc.setAttr(inMeshAttr, lock=True)
 #unpinAllMeshUVs()
 
 class ExtractModel(publish.Extractor,
