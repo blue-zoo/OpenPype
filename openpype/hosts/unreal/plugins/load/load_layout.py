@@ -193,7 +193,7 @@ class LayoutLoader(plugin.Loader):
         skeletal_mesh = None
         for asset in assets:
             obj = ar.get_asset_by_object_path(asset).get_asset()
-            if obj.get_class().get_name() == class_name:
+            if obj and obj.get_class().get_name() == class_name:
 
                 t = self._transform_from_basis(transform, basis,swap_axis=True)
                 actor = None
