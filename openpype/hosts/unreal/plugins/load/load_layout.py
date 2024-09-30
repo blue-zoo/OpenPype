@@ -651,7 +651,7 @@ class LayoutLoader(plugin.Loader):
 
                 for asset in assets:
                     obj = ar.get_asset_by_object_path(asset).get_asset()
-                    if obj and if obj.get_class():
+                    if obj and obj.get_class():
                         if obj.get_class().get_name() == 'AyonAssetContainer':
                             container = obj
                         if obj.get_class().get_name() == 'Skeleton':
