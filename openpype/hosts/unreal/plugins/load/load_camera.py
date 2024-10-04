@@ -363,9 +363,17 @@ class CameraLoader(plugin.Loader):
                         if not camera in bindings.bound_objects:
                             continue
                         else:
+                            # Delete tracks
                             tracks= bindings.binding_proxy.get_tracks()
                             for track in tracks:
                                 bindings.binding_proxy.remove_track(track)
+
+                            # Delete any children as well before deleting fully
+                            for child in bindings.binding_proxy.get_child_possessables():
+                                for track in child.get_tracks():
+                                    child.remove_track(track)
+                                child.remove()
+
                             bindings.binding_proxy.remove()
 
                         if previousRepresentationId in camera.tags:
