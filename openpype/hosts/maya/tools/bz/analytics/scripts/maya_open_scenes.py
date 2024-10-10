@@ -68,7 +68,7 @@ def getSceneOpenData(scene):
             'Found an open scene (%s, %s)', open_scene['username'],
             open_scene['date'].format('YYYY-MM-DD HH:mm'),
         )
-        if open_scene['username'] not in (getuser(), 'peterh'):
+        if open_scene['username'] not in (getuser().lower(), 'peterh'):
             yield open_scene
 
 
