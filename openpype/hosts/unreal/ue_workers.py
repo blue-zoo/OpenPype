@@ -14,7 +14,6 @@ from qtpy import QtCore
 import openpype.hosts.unreal.lib as ue_lib
 from openpype.settings import get_project_settings
 
-
 def parse_comp_progress(line: str, progress_signal: QtCore.Signal(int)):
     match = re.search(r"\[[1-9]+/[0-9]+]", line)
     if match is not None:
@@ -155,14 +154,19 @@ class UEProjectGenerationWorker(UEWorker):
         return_code = gen_process.wait()
 
         cmdlet_tmp.cleanup()
+        self.log.emit('got return code from cmdlet {c}'.format(c=return_code))
 
         if return_code and return_code != 0:
-            msg = (
-                f"Failed to generate {self.project_name} "
-                f"project! Exited with return code {return_code}"
-            )
-            self.failed.emit(msg, return_code)
-            raise RuntimeError(msg)
+            # Return code is 1 in this instance..
+            if return_code == 1 and self.ue_version == "5.5":
+                self.log.emit('Ignoring return code {c} from 5.5'.format(c=return_code))
+            else:
+                msg = (
+                    f"Failed to generate {self.project_name} "
+                    f"project! Exited with return code {return_code}"
+                )
+                self.failed.emit(msg, return_code)
+                raise RuntimeError(msg)
 
         print("--- Project has been generated successfully.")
         self.stage_begin.emit(
@@ -260,57 +264,6 @@ class UEProjectGenerationWorker(UEWorker):
                 self.failed.emit(msg, return_code)
                 raise RuntimeError(msg)
 
-        # ensure we have PySide2 installed in engine
-
-        self.progress.emit(0)
-        self.stage_begin.emit(
-            (f"Checking PySide2 installation... {stage_count} "
-             f" out of {stage_count}"))
-        python_path = None
-        if platform.system().lower() == "windows":
-            python_path = self.engine_path / ("Engine/Binaries/ThirdParty/"
-                                              "Python3/Win64/python.exe")
-
-        if platform.system().lower() == "linux":
-            python_path = self.engine_path / ("Engine/Binaries/ThirdParty/"
-                                              "Python3/Linux/bin/python3")
-
-        if platform.system().lower() == "darwin":
-            python_path = self.engine_path / ("Engine/Binaries/ThirdParty/"
-                                              "Python3/Mac/bin/python3")
-
-        if not python_path:
-            msg = "Unsupported platform"
-            self.failed.emit(msg, 1)
-            raise NotImplementedError(msg)
-        if not python_path.exists():
-            msg = f"Unreal Python not found at {python_path}"
-            self.failed.emit(msg, 1)
-            raise RuntimeError(msg)
-        pyside_cmd = [python_path.as_posix(),
-                      "-m",
-                      "pip",
-                      "install",
-                      "pyside2"]
-
-        pyside_install = subprocess.Popen(pyside_cmd,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE)
-
-        for line in pyside_install.stdout:
-            decoded_line: str = line.decode(errors="replace")
-            print(decoded_line, end="")
-            self.log.emit(decoded_line)
-
-        pyside_install.stdout.close()
-        return_code = pyside_install.wait()
-
-        if return_code and return_code != 0:
-            msg = ("Failed to create the project! "
-                   "The installation of PySide2 has failed!")
-            self.failed.emit(msg, return_code)
-            raise RuntimeError(msg)
-
         self.progress.emit(100)
         self.finished.emit("Project successfully built!")
 
@@ -326,7 +279,7 @@ class UEPluginInstallWorker(UEWorker):
         uat_path: Path = ue_lib.get_path_to_uat(self.engine_path)
         src_plugin_dir = Path(self.env.get("AYON_UNREAL_PLUGIN", ""))
 
-        if not os.path.isdir(src_plugin_dir):
+        if not src_plugin_dir.is_dir():
             msg = "Path to the integration plugin is null!"
             self.failed.emit(msg, 1)
             raise RuntimeError(msg)
@@ -387,7 +340,7 @@ class UEPluginInstallWorker(UEWorker):
     def execute(self):
         src_plugin_dir = Path(self.env.get("AYON_UNREAL_PLUGIN", ""))
 
-        if not os.path.isdir(src_plugin_dir):
+        if not src_plugin_dir.is_dir():
             msg = "Path to the integration plugin is null!"
             self.failed.emit(msg, 1)
             raise RuntimeError(msg)

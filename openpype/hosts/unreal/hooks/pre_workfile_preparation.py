@@ -144,22 +144,36 @@ class UnrealPrelaunchHook(PreLaunchHook):
             raise ApplicationLaunchFailed("Couldn't run the application! "
                                           "Failed to generate the project!")
 
-    def execute(self):
-        """Hook entry method."""
+    def determine_work_folder(self):#
+        """Determine the folder for the project to launch"""
+        # ignored now...
         workdir = self.launch_context.env["AVALON_WORKDIR"]
 
         local_unreal_projects_folder = "unrealProjects"
-        # If dev stream is selected move to another file name
-        use_dev_stream = self.launch_context.env.get("PERFORCE_STREAM",None)
-        if use_dev_stream == "dev":
-            local_unreal_projects_folder+="_dev"
 
-        # Override with local work file
+        # Get the drive letter specified by the launch vars.
+        work_drive_root = self.launch_context.env.get("WORK_DRIVE_ROOT",None)
+        if work_drive_root == None :
+            self.log.info("No WORK_DRIVE_ROOT root set, defaulting to C:/")
+            work_drive_root = "C:"
+
+        # Override with local work file and use
+        # the drive letter specified by the launch vars
         workdir = os.path.expanduser('~')
+
+        _drive,workdir = os.path.splitdrive(workdir)
+        if not os.path.exists(_drive):
+            raise Exception("Drive {d} not found for unreal project".format(d=_drive))
+
+        workdir = os.path.join( work_drive_root, workdir )
         workdir = os.path.join(workdir,local_unreal_projects_folder)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
+        return workdir
 
+    def execute(self):
+        """Hook entry method."""
+        workdir = self.determine_work_folder()
         executable = str(self.launch_context.executable)
         engine_version = self.app_name.split("/")[-1].replace("-", ".")
         engine_version = engine_version.replace(".Dev.Stream","")
@@ -216,6 +230,8 @@ class UnrealPrelaunchHook(PreLaunchHook):
 
         built_plugin_path = self.launch_context.env.get(
             "AYON_BUILT_UNREAL_PLUGIN", None)
+        self.log.info('AYON_BUILT_UNREAL_PLUGIN set to {v}'.format(v=built_plugin_path) )
+
 
         if unreal_lib.check_built_plugin_existance(built_plugin_path):
             self.log.info((
