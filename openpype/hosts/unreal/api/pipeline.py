@@ -552,8 +552,12 @@ def get_subsequences(sequence: unreal.LevelSequence):
 def set_sequence_hierarchy(
     seq_i, seq_j, max_frame_i, min_frame_j, max_frame_j, map_paths
 ):
-    # Get existing sequencer tracks or create them if they don't exist
-    tracks = seq_i.get_master_tracks()
+    is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+    if is5_5:
+        tracks = seq_i.get_tracks()
+    else:
+        # Get existing sequencer tracks or create them if they don't exist
+        tracks = seq_i.get_master_tracks()
     subscene_track = None
     visibility_track = None
     for t in tracks:
@@ -563,11 +567,18 @@ def set_sequence_hierarchy(
                 unreal.MovieSceneLevelVisibilityTrack.static_class()):
             visibility_track = t
     if not subscene_track:
-        subscene_track = seq_i.add_master_track(unreal.MovieSceneSubTrack)
+        if is5_5:
+            subscene_track = seq_i.add_track(unreal.MovieSceneSubTrack)
+        else:
+            subscene_track = seq_i.add_master_track(unreal.MovieSceneSubTrack)
 
     if not visibility_track:
-        visibility_track = seq_i.add_master_track(
-            unreal.MovieSceneLevelVisibilityTrack)
+        if is5_5:
+            visibility_track = seq_i.add_track(
+                unreal.MovieSceneLevelVisibilityTrack)
+        else:
+            visibility_track = seq_i.add_master_track(
+                unreal.MovieSceneLevelVisibilityTrack)
 
     # Create the sub-scene section
     subscenes = subscene_track.get_sections()
@@ -679,6 +690,8 @@ def set_sequence_hierarchy(
 
 
 def generate_sequence(h, h_dir):
+    is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+
     tools = unreal.AssetToolsHelpers().get_asset_tools()
     sequence = tools.create_asset(
         asset_name=h,
@@ -726,8 +739,10 @@ def generate_sequence(h, h_dir):
     sequence.set_work_range_end(max_frame / fps)
     sequence.set_view_range_start(min_frame / fps)
     sequence.set_view_range_end(max_frame / fps)
-
-    tracks = sequence.get_master_tracks()
+    if is5_5:
+        tracks = sequence.get_tracks()
+    else:
+        tracks = sequence.get_master_tracks()
     track = None
     for t in tracks:
         if (t.get_class() ==
@@ -735,8 +750,12 @@ def generate_sequence(h, h_dir):
             track = t
             break
     if not track:
-        track = sequence.add_master_track(
-            unreal.MovieSceneCameraCutTrack)
+        if is5_5:
+            track = sequence.add_track(
+                unreal.MovieSceneCameraCutTrack)
+        else:
+            track = sequence.add_master_track(
+                unreal.MovieSceneCameraCutTrack)
 
     return sequence, (min_frame, max_frame)
 

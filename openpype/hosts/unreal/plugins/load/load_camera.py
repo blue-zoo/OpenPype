@@ -43,6 +43,7 @@ class CameraLoader(plugin.Loader):
         self, world, sequence, bindings, import_fbx_settings, import_filename
     ):
         ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        is5_5 = unreal.SystemLibrary.get_engine_version()
         ue_major = int(ue_version[0])
         ue_minor = int(ue_version[1])
 
@@ -63,8 +64,12 @@ class CameraLoader(plugin.Loader):
                 import_fbx_settings,
                 import_filename
             )
+            if is5_5:
 
-            tracks = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)
+                tracks = sequence.find_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)
+            else:
+                tracks = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)
+
             sections = tracks[0].get_sections()
 
 
@@ -98,12 +103,15 @@ class CameraLoader(plugin.Loader):
         Returns:
             list(str): list of container content
         """
+        is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+
         # Always start by saving everything, so if we get an error or crash
         # during loading we have saved our changes, but also to make sure
         # that people push EVERYTHING on perforce and never have to
         # mark for add
         # NOTE: We will also end with doing the same thing.
         unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True,True)
+
 
         # Create directory for asset and Ayon container
         hierarchy = context.get('asset').get('data').get('parents')
@@ -295,8 +303,11 @@ class CameraLoader(plugin.Loader):
 
         for episodeLevel in episodeLevels:
             sequence = episodeLevel['sequence']
+            if is5_5:
+                track = sequence.find_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
 
-            track = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+            else:
+                track = sequence.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
             sections = track.get_sections()
             section = track.add_section()
             section.set_range(clipIn,clipOut+1)
@@ -573,6 +584,8 @@ class CameraLoader(plugin.Loader):
             EditorAssetLibrary.delete_directory(path.parent.as_posix())
 
     def set_camera_properties(self, actor, representation):
+        is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+
         camera = actor.get_cine_camera_component()
         post_proc_settings = camera.post_process_settings
 
@@ -581,8 +594,13 @@ class CameraLoader(plugin.Loader):
         post_proc_settings.override_motion_blur_amount = True
         post_proc_settings.camera_shutter_speed = 0
         post_proc_settings.override_camera_shutter_speed = True
-        post_proc_settings.path_tracing_max_path_exposure = 1
-        post_proc_settings.override_path_tracing_max_path_exposure = True
+        if is5_5:
+            post_proc_settings.path_tracing_max_path_intensity = 1
+            post_proc_settings.override_path_tracing_max_path_intensity = True
+
+        else:
+            post_proc_settings.path_tracing_max_path_exposure = 1
+            post_proc_settings.override_path_tracing_max_path_exposure = True
 
         # Published information from maya
         published_properties = representation['data']['context'].get(

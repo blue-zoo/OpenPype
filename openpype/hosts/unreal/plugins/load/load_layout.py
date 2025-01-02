@@ -784,6 +784,8 @@ class LayoutLoader(plugin.Loader):
         Returns:
             list(str): list of container content
         """
+        is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+
         # Always start by saving everything, so if we get an error or crash
         # during loading we have saved our changes, but also to make sure
         # that people push EVERYTHING on perforce and never have to
@@ -1123,7 +1125,10 @@ class LayoutLoader(plugin.Loader):
                 shot.find_tracks_by_exact_type(unreal.MovieSceneSubTrack) + [None]))
 
             if subscene_track is None:
-                subscene_track = shot.add_master_track(unreal.MovieSceneSubTrack)
+                if is5_5:
+                    subscene_track = shot.add_track(unreal.MovieSceneSubTrack)
+                else:
+                    subscene_track = shot.add_master_track(unreal.MovieSceneSubTrack)
 
             subsection = None
             for section in subscene_track.get_sections():
