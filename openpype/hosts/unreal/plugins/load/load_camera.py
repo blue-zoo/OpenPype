@@ -325,6 +325,8 @@ class CameraLoader(plugin.Loader):
         return asset_content
 
     def update(self, container, representation):
+        is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
 
         curr_level_sequence = LevelSequenceLib.get_current_level_sequence()
@@ -391,7 +393,11 @@ class CameraLoader(plugin.Loader):
                             unreal.EditorLevelLibrary.destroy_actor(camera)
 
                 ## Remove Camera Cut
-                track = seq.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+                if is5_5:
+                    track = seq.find_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+                else:
+                    track = seq.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+
                 #binding.add_track(track)
                 sections = track.get_sections()
                 for section in sections:
@@ -425,8 +431,11 @@ class CameraLoader(plugin.Loader):
                 binding = unreal.MovieSceneSequenceExtensions.find_binding_by_id(seq, _id )
                 #bindingName = binding.get_name()
 
+                if is5_5:
+                    track = seq.find_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
+                else:
+                    track = seq.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
 
-                track = seq.find_master_tracks_by_exact_type(unreal.MovieSceneCameraCutTrack)[0]
                 #binding.add_track(track)
                 sections = track.get_sections()
                 for section in sections:
