@@ -36,6 +36,13 @@ class AnimationFBXLoader(plugin.Loader):
             raise RuntimeError('Unexpected error retrieving frame range data. '
                                'Please submit ticket with the full error.')
 
+        # Set the Interchange.FeatureFlags.Import.FBX CVar to false, as most of the
+        # settings below pertain to the old (before 5.5 i.e. before Interchange)
+        # FBX importer and using Interchange would require an overhaul
+        unreal.SystemLibrary.execute_console_command(
+            unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world(),
+            'Interchange.FeatureFlags.Import.FBX false')
+
         automated = False
         actor = None
 
@@ -354,6 +361,13 @@ class AnimationFBXLoader(plugin.Loader):
         instance_data = get_version_by_id(
             representation['context']['project']['name'],
             representation['parent'])['data']
+
+        # Set the Interchange.FeatureFlags.Import.FBX CVar to false, as most of the
+        # settings below pertain to the old (before 5.5 i.e. before Interchange)
+        # FBX importer and using Interchange would require an overhaul
+        unreal.SystemLibrary.execute_console_command(
+            unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world(),
+            'Interchange.FeatureFlags.Import.FBX false')
 
         task = unreal.AssetImportTask()
         task.options = unreal.FbxImportUI()
