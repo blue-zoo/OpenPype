@@ -243,9 +243,9 @@ class LXFML(object):
         </Configurations>
         """
         def processBuild(build, parent=None):
-            name = build.attrib['name']
+            name = build.attrib['name'] + '_GRP'
             if parent is not None:
-                name = '{}|{}'.format(parent.attrib['name'], name)
+                name = '{}|{}'.format(parent.attrib['name'] + '_GRP', name)
 
             uuids = [brick.attrib['brickRef'] for brick in build.findall('Brick')]
             bricks = map(allBricks.__getitem__, uuids)
