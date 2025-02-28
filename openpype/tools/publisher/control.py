@@ -2528,6 +2528,102 @@ class PublisherController(BasePublisherController):
 
         self._publish_next_process()
 
+    def submit_to_deadline(self):
+        '''A Blue Zoo specific function to submit the current Maya scene to
+        be published on the farm via Deadline.
+
+        We use the deadline web service for the submission and the flow
+        triggering this function is only registered if we are inside of Maya.
+
+        Rather than submitting the current file as the source file for publishing,
+        we make a copy of it in a `./_farm_publish` directory, so that the current
+        state of the scene is published, rather than any changes that may be
+        done to this current workfile after submission.
+        '''
+        import getpass
+        import requests
+        import time
+        from maya import cmds as mc
+
+        from openpype.hosts.maya.api import MayaHost
+        from openpype.pipeline.context_tools import (
+            get_current_project_name, get_current_asset_name,
+            get_current_task_name)
+
+        current_workfile = MayaHost().get_current_workfile()
+        parent_dir, workfile = os.path.split(current_workfile)
+        workfile_name, workfile_ext = workfile.rsplit('.',1)
+
+        farm_publish_workdir = os.path.join(parent_dir, '_farm_publish')
+        if not os.path.exists(farm_publish_workdir):
+            os.mkdir(farm_publish_workdir)
+
+        farm_workfile_name = workfile_name + '_' + str(int(time.time())) + '.' + workfile_ext
+        farm_publish_workfile = os.path.join(farm_publish_workdir, farm_workfile_name)
+
+        current_file_name = mc.file(sceneName=1,q=1)
+        mc.file(rename=farm_publish_workfile)
+        mc.file(save=1)
+        mc.file(rename=current_file_name)
+
+        project_name = get_current_project_name()
+        asset_name = get_current_asset_name()
+        task_name = get_current_task_name()
+
+        # Handle desired deadline conventions
+        asset_short_name = asset_name.rsplit('/',1)[-1]
+        extraInfo4 = 'PublishAsset'
+        job_name = workfile_name + '.' + workfile_ext
+        if asset_name.startswith('/Production'):
+            job_name = 'Publish_' + job_name
+            batch_name = 'Publish_' + asset_short_name
+            extraInfo4 = 'PublishShot'
+        else:
+            job_name = os.environ['AVALON_PROJECT'] + '_' + job_name
+            batch_name = os.environ['AVALON_PROJECT'] + '_' + asset_short_name + '_' + task_name
+
+        job_info = {
+            'Plugin': 'bzAyonFarmPublish',
+            'BatchName': batch_name,
+            'Name': job_name,
+            'UserName': getpass.getuser(),
+            'Pool': 'publish',
+            'Group': 'gpu',
+            'LimitGroups': 'ayon_pub_grp',
+            'ExtraInfo3': asset_name.rsplit('/',1)[-1],
+            'ExtraInfo4': extraInfo4,
+            'ExtraInfoKeyValue0': f'AssetName={asset_name}',
+            'ExtraInfoKeyValue1': f'ProjectName={project_name}',
+            'ExtraInfoKeyValue2': f'TaskName={task_name}',
+            'ExtraInfoKeyValue3': f'SourceFile={farm_publish_workfile}',
+        }
+
+        submitted_job = requests.post(
+            os.environ['DEADLINE_WEB_SERVICE_URL'] + 'api/jobs',
+            json={
+                'JobInfo': job_info,
+                'PluginInfo': {},
+                'AuxFiles': [],
+                'IdOnly': False,
+            })
+
+        if submitted_job.status_code != 200:
+            self.emit_card_message(
+                'Error submitting job to the farm. Please check '
+                'Script Editor for more details.',
+                CardMessageTypes.error)
+            raise RuntimeError('Failed submitting to the deadline web service. '
+                              f'Status_code: {submitted_job.status_code} '
+                              f'Response text: {submitted_job.text}')
+        else:
+            json_response = submitted_job.json()
+            self.emit_card_message(
+                f'Success! Farm job id: {json_response["_id"]}',
+                CardMessageTypes.standard)
+            print(f'Deadline submission successful! Job id: {json_response["_id"]}')
+            return json_response["_id"]
+
+
 
 def collect_families_from_instances(instances, only_active=False):
     """Collect all families for passed publish instances.

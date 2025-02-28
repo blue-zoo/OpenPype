@@ -262,6 +262,14 @@ class PublishBtn(PublishIconBtn):
         self.setToolTip("Publish")
 
 
+class PublishOnFarmBtn(PublishIconBtn):
+    """Publish start publish button."""
+    def __init__(self, parent=None):
+        icon_path = get_icon_path("play")
+        super(PublishOnFarmBtn, self).__init__(icon_path, "Publish (on farm)", parent)
+        self.setToolTip("Publish (on farm)")
+
+
 class CreateInstanceBtn(PublishIconBtn):
     """Create add button."""
     def __init__(self, parent=None):

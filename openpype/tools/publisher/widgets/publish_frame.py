@@ -9,6 +9,7 @@ from .widgets import (
     ResetBtn,
     ValidateBtn,
     PublishBtn,
+    PublishOnFarmBtn,
     PublishReportBtn,
 )
 
@@ -112,6 +113,7 @@ class PublishFrame(QtWidgets.QWidget):
         stop_btn = StopBtn(footer_widget)
         validate_btn = ValidateBtn(footer_widget)
         publish_btn = PublishBtn(footer_widget)
+        publish_farm_btn = PublishOnFarmBtn(footer_widget)
 
         report_btn.add_action("Go to details", "go_to_report")
         report_btn.add_action("Copy report", "copy_report")
@@ -126,6 +128,10 @@ class PublishFrame(QtWidgets.QWidget):
         footer_layout.addWidget(stop_btn, 0)
         footer_layout.addWidget(validate_btn, 0)
         footer_layout.addWidget(publish_btn, 0)
+
+        if 'maya' in (str(controller._host) or ''):
+            # Only add the farm publish btn in maya
+            footer_layout.addWidget(publish_farm_btn, 0)
 
         # Info frame content
         content_layout = QtWidgets.QVBoxLayout(content_frame)
@@ -157,6 +163,7 @@ class PublishFrame(QtWidgets.QWidget):
         stop_btn.clicked.connect(self._on_stop_clicked)
         validate_btn.clicked.connect(self._on_validate_clicked)
         publish_btn.clicked.connect(self._on_publish_clicked)
+        publish_farm_btn.clicked.connect(self._on_publish_farm_clicked)
 
         shrunk_anim.valueChanged.connect(self._on_shrunk_anim)
         shrunk_anim.finished.connect(self._on_shrunk_anim_finish)
@@ -204,6 +211,7 @@ class PublishFrame(QtWidgets.QWidget):
         self._stop_btn = stop_btn
         self._validate_btn = validate_btn
         self._publish_btn = publish_btn
+        self._publish_farm_btn = publish_farm_btn
 
         self._shrunken = False
         self._top_widget_max_height = None
@@ -317,6 +325,7 @@ class PublishFrame(QtWidgets.QWidget):
         self._stop_btn.setEnabled(False)
         self._validate_btn.setEnabled(True)
         self._publish_btn.setEnabled(True)
+        self._publish_farm_btn.setEnabled(False)
 
         self._progress_bar.setValue(self._controller.publish_progress)
         self._progress_bar.setMaximum(self._controller.publish_max_progress)
@@ -337,6 +346,7 @@ class PublishFrame(QtWidgets.QWidget):
         self._stop_btn.setEnabled(True)
         self._validate_btn.setEnabled(False)
         self._publish_btn.setEnabled(False)
+        self._publish_farm_btn.setEnabled(False)
 
         self.set_shrunk_state(False)
 
@@ -384,6 +394,8 @@ class PublishFrame(QtWidgets.QWidget):
 
         self._validate_btn.setEnabled(validate_enabled)
         self._publish_btn.setEnabled(publish_enabled)
+        self._publish_farm_btn.setEnabled(publish_enabled)
+        self._publish_btn.setEnabled(True)
 
         if self._controller.publish_has_crashed:
             self._set_error_msg()
@@ -396,6 +408,7 @@ class PublishFrame(QtWidgets.QWidget):
             self._set_finished()
 
         else:
+            self._publish_farm_btn.setEnabled(publish_enabled)
             self._set_stopped()
 
     def _set_stopped(self):
@@ -492,3 +505,17 @@ class PublishFrame(QtWidgets.QWidget):
 
     def _on_publish_clicked(self):
         self._controller.publish()
+
+    def _on_publish_farm_clicked(self):
+        self._publish_btn.setEnabled(False)
+        self._publish_farm_btn.setEnabled(False) # prevent multiple sends
+        try:
+            job_id = self._controller.submit_to_deadline()
+            self._progress_bar.setValue(100)
+            self._progress_bar.setMaximum(100)
+            self._set_finished()
+            QtWidgets.QMessageBox.information(self,'Deadline Submission Successful',
+                'Deadline Job ID: ' + str(job_id))
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self,'Deadline Submission Failed',str(e))
+            raise e
