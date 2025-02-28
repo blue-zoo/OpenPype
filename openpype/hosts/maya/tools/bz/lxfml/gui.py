@@ -269,6 +269,8 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
         setupScene(
             self.getXmlPath(),
             BrickDirectory(self.getGeoPath(), group=self.getBrickGroup()),
+            groups=self.createGroups.isChecked(),
+            selectionSets=self.createSelectionSets.isChecked(),
             updateUVs=self.updateUVs.isChecked(),
             deleteColourSets=self.deleteColourSets.isChecked(),
             deleteHistory=self.deleteHistory.isChecked(),
@@ -297,9 +299,8 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
 
     @TemporaryCursor()
     def runScaleBricks(self, scale):
-        from .maya.utils import getSceneBricks, scaleObject
-        for brick in getSceneBricks():
-            scaleObject(brick, scale)
+        from .maya.utils import scaleObject
+        scaleObject(self.getBrickGroup(), scale)
 
     @TemporaryCursor()
     def runApplyPalette(self):

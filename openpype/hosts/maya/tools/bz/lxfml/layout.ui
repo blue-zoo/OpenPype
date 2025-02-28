@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>666</width>
-    <height>691</height>
+    <width>670</width>
+    <height>747</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -298,6 +298,66 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
          </item>
         </layout>
        </item>
+       <item>
+        <layout class="QHBoxLayout" name="createLayout">
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="createGroups">
+           <property name="text">
+            <string>Create Groups</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="createSelectionSets">
+           <property name="text">
+            <string>Create Selection Sets</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
       </layout>
      </widget>
     </item>
@@ -479,7 +539,8 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
        <item>
         <widget class="QCheckBox" name="vertexColours">
          <property name="toolTip">
-          <string>Set brick vertex colours.</string>
+          <string>Set brick vertex colours.
+Warning: This may lock up the PC on heavier imports. The reason is not known.</string>
          </property>
          <property name="statusTip">
           <string>Set brick vertex colours.</string>
@@ -501,7 +562,7 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
        <bool>true</bool>
       </property>
       <property name="checked">
-        <bool>false</bool>
+       <bool>false</bool>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
@@ -703,7 +764,7 @@ The very first UV set will be set to map1. If this clases with bumpSet, then bum
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>666</width>
+     <width>670</width>
      <height>21</height>
     </rect>
    </property>

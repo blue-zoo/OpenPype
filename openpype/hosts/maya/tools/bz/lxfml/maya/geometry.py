@@ -275,6 +275,9 @@ class BrickDirectory(object):
                     self._setDisplayColourChannel(newNode)
                     self._setEnum(newNode, BlockTweaks.UpdateDisplayColourChannel)
 
+                # If no modifications were made, make sure the attr exists at least
+                self._getEnum(newNode)
+
                 # Add custom attributes
                 mc.addAttr(newNode, longName='LEGO_colour', attributeType='float3', usedAsColor=True)
                 mc.addAttr(newNode, longName='LEGO_colourR', attributeType='float', parent='LEGO_colour')
@@ -488,7 +491,7 @@ def addToDisplayLayer(layer, nodes):
     mc.editDisplayLayerMembers(displayLayer, nodes, noRecurse=True)
 
 
-def setupScene(xmlPath, brickDirectory, **kwargs):
+def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, **kwargs):
     """Load the brick files into the scene.
 
     Returns:
@@ -516,13 +519,29 @@ def setupScene(xmlPath, brickDirectory, **kwargs):
             mc.setAttr(brickDirectory.group + '.LEGO_XML', xmlPath, type='string')
 
         # Create selection sets
-        for selectionSet in lxfml.selectionSets:
-            selectionSetName = selectionSet.name
-            if not mc.objExists(selectionSetName):
-                selectionSetName = mc.sets([], name=selectionSetName)
-            bricks = [next(iter(nodes[brick.mayaIdentifier].values())).rsplit('|', 1)[0] for brick in selectionSet.bricks
-                      if brick.mayaIdentifier in nodes]
-            mc.sets(bricks, add=selectionSetName)
+        if selectionSets:
+            for selectionSet in lxfml.selectionSets:
+                selectionSetName = selectionSet.name
+                if not mc.objExists(selectionSetName):
+                    selectionSetName = mc.sets([], name=selectionSetName)
+                bricks = [next(iter(nodes[brick.mayaIdentifier].values())).rsplit('|', 1)[0] for brick in selectionSet.bricks
+                          if brick.mayaIdentifier in nodes]
+                mc.sets(bricks, add=selectionSetName)
+
+        # Create groups
+        if groups:
+            for group in lxfml.groups:
+                groupPath = '{}|{}'.format(brickDirectory.group, group.name)
+                bricks = [next(iter(nodes[brick.mayaIdentifier].values())).rsplit('|', 1)[0] for brick in group.bricks
+                          if brick.mayaIdentifier in nodes]
+
+                # Ensure group exists
+                parent, groupName = groupPath.rsplit('|', 1)
+                if not mc.objExists(groupPath):
+                    groupPath = '{}|{}'.format(parent, mc.rename(mc.parent(mc.createNode('transform'), parent), groupName))
+
+                for brick in bricks:
+                    mc.parent(brick, groupPath)
 
         # Clear any new unknown plugins
         newUnknownPlugins = set(mc.unknownPlugin(query=True, list=True) or ()) - unknownPlugins

@@ -20,7 +20,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(666, 691)
+        MainWindow.resize(670, 747)
         sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -159,6 +159,34 @@ class Ui_MainWindow(object):
 
 
         self.verticalLayout_4.addLayout(self.optionsLayout)
+
+        self.createLayout = QHBoxLayout()
+        self.createLayout.setObjectName(u"createLayout")
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.createLayout.addItem(self.horizontalSpacer)
+
+        self.createGroups = QCheckBox(self.geoGrp)
+        self.createGroups.setObjectName(u"createGroups")
+        self.createGroups.setChecked(True)
+
+        self.createLayout.addWidget(self.createGroups)
+
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.createLayout.addItem(self.horizontalSpacer_3)
+
+        self.createSelectionSets = QCheckBox(self.geoGrp)
+        self.createSelectionSets.setObjectName(u"createSelectionSets")
+
+        self.createLayout.addWidget(self.createSelectionSets)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.createLayout.addItem(self.horizontalSpacer_2)
+
+
+        self.verticalLayout_4.addLayout(self.createLayout)
 
 
         self.verticalLayout_3.addWidget(self.geoGrp)
@@ -371,7 +399,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 666, 21))
+        self.menubar.setGeometry(QRect(0, 0, 670, 21))
         self.menuHelp = QMenu(self.menubar)
         self.menuHelp.setObjectName(u"menuHelp")
         self.menuFile = QMenu(self.menubar)
@@ -512,6 +540,8 @@ class Ui_MainWindow(object):
         self.updateDisplayColourChannel.setStatusTip(QCoreApplication.translate("MainWindow", u" Set the display colour channel to diffuse.", None))
 #endif // QT_CONFIG(statustip)
         self.updateDisplayColourChannel.setText(QCoreApplication.translate("MainWindow", u"Set Diffuse Colour Channel", None))
+        self.createGroups.setText(QCoreApplication.translate("MainWindow", u"Create Groups", None))
+        self.createSelectionSets.setText(QCoreApplication.translate("MainWindow", u"Create Selection Sets", None))
         self.scaleGrp.setTitle(QCoreApplication.translate("MainWindow", u"Set Scale", None))
         self.scaleValue.setSuffix(QCoreApplication.translate("MainWindow", u"x", None))
         self.shdGrp.setTitle(QCoreApplication.translate("MainWindow", u"Assign Shaders", None))
@@ -565,7 +595,8 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(statustip)
         self.paletteOpen.setText("")
 #if QT_CONFIG(tooltip)
-        self.vertexColours.setToolTip(QCoreApplication.translate("MainWindow", u"Set brick vertex colours.", None))
+        self.vertexColours.setToolTip(QCoreApplication.translate("MainWindow", u"Set brick vertex colours.\n"
+"Warning: This may lock up the PC on heavier imports. The reason is not known.", None))
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(statustip)
         self.vertexColours.setStatusTip(QCoreApplication.translate("MainWindow", u"Set brick vertex colours.", None))
@@ -644,3 +675,4 @@ class Ui_MainWindow(object):
         self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"Help", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
     # retranslateUi
+

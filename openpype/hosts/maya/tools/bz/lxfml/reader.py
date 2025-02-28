@@ -17,6 +17,8 @@ except ImportError:
 
 SelectionSet = namedtuple('SelectionSet', ('name', 'bricks'))
 
+Group = namedtuple('Group', ('name', 'bricks'))
+
 
 class _ElementItem(object):
     def __init__(self, element, version):
@@ -192,26 +194,71 @@ class LXFML(object):
                 </BrickGroupSystem>
             </GroupSystems>
         """
-        groups = []
-        for system in self.root.find('GroupSystems'):
-            if system.attrib['name'] == 'UserSelectionSets':
-                groups.extend(system)
+        brickGroups = []
+        for groupSystem in self.root.findall('GroupSystems'):
+            for brickGroupSystem in groupSystem.findall('BrickGroupSystem[@name="UserSelectionSets"]'):
+                brickGroups.extend(brickGroupSystem.findall('Group'))
 
-        if not groups:
+        if not brickGroups:
             return
 
         if self.version >= 8:
             allBricks = {brick.uuid: brick for brick in self.bricks}
-            for group in groups:
+            for group in brickGroups:
                 name = group.attrib['name']
-                uuids = [brick.attrib['brickRef'] for brick in group]
+                uuids = [brick.attrib['brickRef'] for brick in group.findall('Brick')]
                 bricks = map(allBricks.__getitem__, uuids)
                 yield SelectionSet(name, list(bricks))
 
         else:
             allBricks = {brick.refID: brick for brick in self.bricks}
-            for group in groups:
+            for group in brickGroups:
                 name = group.attrib['name']
                 brickRefs = group.attrib['brickRefs'].split(',')
                 bricks = map(allBricks.__getitem__, map(int, brickRefs))
                 yield SelectionSet(name, list(bricks))
+
+    @property
+    def groups(self):
+        """Get the groups.
+
+        <Configurations>
+            <Configuration type="design">
+                <Build uuid="daa87ad8-6d8d-44a9-b42b-2ac6b6560cbc" name="SteeringWheel" mainCategory="" subCategory="">
+                    <Brick brickRef="50bee680-0f8c-4ed0-82bf-52ca14035757"/>
+                </Build>
+                <Build uuid="0e1dc3a8-cd0c-46ea-9b88-99d262a36107" name="RearLight" mainCategory="" subCategory="">
+                    <Brick brickRef="e5b4205e-b701-4671-85b5-77a410aab3d5"/>
+                </Build>
+                <Build uuid="40632f19-4872-4909-8c2e-920965c1e1f5" name="Roof" mainCategory="" subCategory="">
+                    <Brick brickRef="d544baaa-f4dc-4ecc-81cc-8c77dcc6ee11"/>
+                    <Brick brickRef="2d2f9750-a4ea-402f-b4de-d62f18c6f469"/>
+                    <Brick brickRef="a8296dad-4d5c-438d-b415-7132b7252201"/>
+                    <Build uuid="1d5d9acd-43e7-4c26-b22c-d3f25fe8cbc7" name="Flames" mainCategory="" subCategory="">
+                        <Brick brickRef="2b78f572-af03-4c0b-b640-c5ef348cf05c"/>
+                        <Brick brickRef="8fec6640-3b0e-418a-b592-434a5af8daa4"/>
+                    </Build>
+                </Build>
+            </Configuration>
+        </Configurations>
+        """
+        def processBuild(build, parent=None):
+            name = build.attrib['name']
+            if parent is not None:
+                name = '{}|{}'.format(parent.attrib['name'], name)
+
+            uuids = [brick.attrib['brickRef'] for brick in build.findall('Brick')]
+            bricks = map(allBricks.__getitem__, uuids)
+            yield Group(name, list(bricks))
+
+            for child in build.findall('Build'):
+                for result in processBuild(child, build):
+                    yield result
+
+        allBricks = {brick.uuid: brick for brick in self.bricks}
+
+        for configurations in self.root.findall('Configurations'):
+            for configuration in configurations.findall('Configuration[@type="design"]'):
+                for build in configuration.findall('Build'):
+                    for result in processBuild(build):
+                        yield result
