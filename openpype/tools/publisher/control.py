@@ -2592,6 +2592,7 @@ class PublisherController(BasePublisherController):
             'LimitGroups': 'ayon_pub_grp',
             'ExtraInfo3': asset_name.rsplit('/',1)[-1],
             'ExtraInfo4': extraInfo4,
+            'EnvironmentKeyValue0': f'JOB={os.environ["AVALON_PROJECT"]}',
             'ExtraInfoKeyValue0': f'AssetName={asset_name}',
             'ExtraInfoKeyValue1': f'ProjectName={project_name}',
             'ExtraInfoKeyValue2': f'TaskName={task_name}',
