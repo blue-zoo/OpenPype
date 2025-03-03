@@ -146,6 +146,11 @@ def suspended_refresh(suspend=True):
 
     cmds.ogs(pause=True) is a toggle so we cant pass False.
     """
+    if cmds.about(batch=1):
+        # ogs is, of course, unavailable in batch mode, so don't attempt it
+        yield
+        return
+
     original_state = cmds.ogs(query=True, pause=True)
     try:
         if suspend and not original_state:

@@ -105,6 +105,7 @@ class ExtractCameraAlembic(publish.Extractor,
 
             with lib.evaluation("off"):
                 with lib.suspended_refresh():
+                    cmds.loadPlugin('AbcExport', quiet=True)
                     cmds.AbcExport(j=job_str, verbose=False)
 
         if "representations" not in instance.data:
