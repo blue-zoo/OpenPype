@@ -889,7 +889,10 @@ class LayoutLoader(plugin.Loader):
                     sequence_levelSeq.find_tracks_by_exact_type(unreal.MovieSceneSubTrack) + [None]))
 
                 if subscene_track is None:
-                    subscene_track = sequence_levelSeq.add_master_track(unreal.MovieSceneSubTrack)
+                    if is5_5:
+                        subscene_track = sequence_levelSeq.add_track(unreal.MovieSceneSubTrack)
+                    else:
+                        subscene_track = sequence_levelSeq.add_master_track(unreal.MovieSceneSubTrack)
 
                 subsection = None
                 for section in subscene_track.get_sections():
