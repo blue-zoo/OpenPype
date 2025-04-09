@@ -606,6 +606,7 @@ class CameraLoader(plugin.Loader):
         if is5_5:
             post_proc_settings.path_tracing_max_path_intensity = 1
             post_proc_settings.override_path_tracing_max_path_intensity = True
+            camera.focus_settings.focus_method = unreal.CameraFocusMethod.DISABLE
 
         else:
             post_proc_settings.path_tracing_max_path_exposure = 1
