@@ -195,6 +195,18 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                     asset_dir + '/' + container_name):
                 unreal_pipeline.create_container(
                     container=container_name, path=asset_dir)
+        else:
+            # Exit without doing anything as if the skeletal mesh already has been
+            # imported we don't want to do anything to it, and especially we don't
+            # want to resave it as that tries to check it out on perforce leading
+            # to people checking things out that really don't need to be checked
+            # out which in turns lead to people clicking _make writable_ and that
+            # leads to desync and the necessity of reconciling offline work which
+            # is slow and people forget to do
+            print(f'[Skelmesh Checkout Prevention]: Skipping loading {asset_dir} as it is already loaded.')
+            return unreal.EditorAssetLibrary.list_assets(
+                asset_dir, recursive=True, include_folder=True
+            )
 
 
         data = {

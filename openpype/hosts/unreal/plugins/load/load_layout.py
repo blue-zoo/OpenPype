@@ -1161,8 +1161,15 @@ class LayoutLoader(plugin.Loader):
         # that gets brought in during loading a layout, we ensure that it is
         # saved, so that we ensure people are always pushing EVERYTHING
         # on perforce and never have to mark for add
-        # NOTE: We will also end with doing the same thing.
-        unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True,True)
+        # NOTE: This annoyingly checks out skeletal meshes that have been (re)loaded
+        # on perforce, as for some reason, though they are the same, they get dirty.
+        # So to avoid a huge amount of checking out things that have no reason
+        # to be checkedout i.e. skeletal meshes, we only save NON-asset packages
+        to_save = unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages()
+        for package in unreal.EditorLoadingAndSavingUtils.get_dirty_content_packages():
+            if not package.get_path_name().startswith('/Game/Ayon/Libraries/Assets'):
+                to_save.append(package)
+        unreal.EditorLoadingAndSavingUtils.save_packages(to_save, only_dirty=True)
 
         return asset_content
 
