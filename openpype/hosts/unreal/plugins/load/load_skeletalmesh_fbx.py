@@ -155,6 +155,22 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             task.options = options
             unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])  # noqa: E501
 
+            # Load the asset we just imported
+            newly_imported_SKM = unreal.load_asset(asset_dir + '/' + asset_name)
+
+            if newly_imported_SKM:
+                # We can't just set the editor property, we have to access
+                # via Nanite Settings object then set it back, weird
+                nanite_settings = newly_imported_SKM.get_editor_property("nanite_settings")
+                nanite_settings.enabled = True
+                newly_imported_SKM.set_editor_property("nanite_settings", nanite_settings)
+
+                # Save the asset directly, we are directly after the asset
+                # I am considering not doing this save since we're not 
+                # directly saving the skeletal mesh either, inconsistent
+                unreal.EditorAssetLibrary.save_loaded_asset(newly_imported_SKM)
+
+
             if created_temp_material:
                 # Delete temporary base material, only if we created it, as we
                 # could have run into a case where a material with that path
@@ -234,6 +250,14 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         return asset_content
 
     def update(self, container, representation):
+        # Check if the target version had nanite enabled before we update
+        existing_has_nanite_enabled = True
+        last_version_skm = unreal.load_asset(container["namespace"] + '/' + container["asset_name"])
+
+        if last_version_skm:
+            nanite_settings = last_version_skm.get_editor_property("nanite_settings")
+            existing_has_nanite_enabled = nanite_settings.enabled
+
         name = container["asset_name"]
         source_path = get_representation_path(representation)
         destination_path = container["namespace"]
@@ -278,8 +302,25 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         task.options = options
         # do import fbx and replace existing data
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])  # noqa: E501
+
         container_path = "{}/{}".format(container["namespace"],
-                                        container["objectName"])
+                                        container["objectName"])        
+
+        # Load the asset we just imported
+        newly_imported_SKM = unreal.load_asset(container["namespace"] + '/' + container["asset_name"])
+
+        if newly_imported_SKM:
+            # We can't just set the editor property, we have to access
+            # via Nanite Settings object then set it back, weird
+            nanite_settings = newly_imported_SKM.get_editor_property("nanite_settings")
+            nanite_settings.enabled = existing_has_nanite_enabled
+            newly_imported_SKM.set_editor_property("nanite_settings", nanite_settings)
+
+            # Save the asset directly, we are directly after the asset
+            # I am considering not doing this save since we're not 
+            # directly saving the skeletal mesh either, inconsistent
+            unreal.EditorAssetLibrary.save_loaded_asset(newly_imported_SKM)
+
         # update metadata
         unreal_pipeline.imprint(
             container_path,
