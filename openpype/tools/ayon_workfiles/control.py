@@ -670,7 +670,16 @@ class BaseWorkfileController(
                 asset_doc,
                 event_data["task_name"]
             )
-
+        else:
+            # Use OpenPype asset-like object
+            asset_doc = get_asset_by_id(
+                event_data["project_name"],
+                event_data["folder_id"],
+            )
+            change_current_context(
+                asset_doc,
+                event_data["task_name"]
+            )
         self._host_open_workfile(filepath)
 
         emit_event("workfile.open.after", event_data, source="workfiles.tool")
