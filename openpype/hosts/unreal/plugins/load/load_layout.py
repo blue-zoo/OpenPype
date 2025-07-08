@@ -1015,6 +1015,7 @@ class LayoutLoader(plugin.Loader):
                     asset_class=unreal.LevelSequence,
                     factory=unreal.LevelSequenceFactoryNew()
                     )
+                shot.set_evaluation_type(unreal.MovieSceneEvaluationType.FRAME_LOCKED)
                 shot.set_tick_resolution(unreal.FrameRate(data.get('fps'),1.0))
                 self.log.warning("Made new shot :"+str(shot.get_name()))
 
