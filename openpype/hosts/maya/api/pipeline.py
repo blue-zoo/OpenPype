@@ -5,7 +5,8 @@ import errno
 import logging
 import contextlib
 import shutil
-
+import re
+import glob
 from maya import utils, cmds, OpenMaya
 import maya.api.OpenMaya as om
 
@@ -579,6 +580,37 @@ def on_save():
     for node, new_id in lib.generate_ids(nodes):
         lib.set_id(node, new_id, overwrite=False)
 
+def check_audio_files():
+    should_update = False
+    _re = r'_v[\d]{3}_'
+    audio_nodes = cmds.ls("SHOT_AUDIO",et="audio")
+    if not audio_nodes:
+        return
+    audio_node = audio_nodes[0]
+    audio_file = cmds.getAttr(audio_node+".filename")
+    if not audio_file:
+        return
+    if not os.path.isfile(audio_file):
+        return
+    filefolder, filename = os.path.split(audio_file)
+    version = re.search(_re,filename)
+
+    current_version = int(version.group(0)[2:5])
+
+    # find later audio files
+    globname = re.sub(_re,"_v***_",filename)
+
+
+    other_audios = glob.glob(os.path.join(filefolder,globname))
+    for audio in other_audios:
+        filefolder, filename = os.path.split(audio)
+        version = re.search(_re,filename)
+        other_version = int(version.group(0)[2:5])
+        if other_version>current_version:
+            should_update = True
+
+    if should_update:
+        cmds.confirmDialog(message="Newer Versions of the Shot Audio found for this shot. \nPlease run the openPype Tools > Add/Update Audio",icon="warning",title="Shot Audio")
 
 def on_open():
     """On scene open let's assume the containers have changed."""
@@ -614,6 +646,8 @@ def on_open():
     # create lock file for the maya scene
     check_lock_on_current_file()
 
+    # Check for later audio files
+    utils.executeDeferred(check_audio_files)
 
 def on_new():
     """Set project resolution and fps when create a new file"""
