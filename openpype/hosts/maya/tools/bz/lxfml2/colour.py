@@ -1,11 +1,7 @@
-"""Handle LEGO colours.
+"""AI modified version of `colour.py` to work with the CSV data insmtead of JSON."""
 
-Rewrite of classes found here: Y:\LEGO\1686s_LegoCitySeries1\Libraries\Script_Library\LEGOColorPalette\lego_color_palette.py
-"""
-
-from __future__ import absolute_import
-
-import json
+import csv
+import re
 
 
 class ColourSpaceTransform(tuple):
@@ -30,6 +26,7 @@ class ColourSpaceTransform(tuple):
     }
 
     def __new__(cls, colour, colourSpace='srgb'):
+        # Ensure color values are floats for math operations
         new = super(ColourSpaceTransform, cls).__new__(cls, map(float, colour[:3]))
         new._colourSpace = colourSpace.lower()
         new.r, new.g, new.b = new
@@ -79,23 +76,31 @@ class ColourSpaceTransform(tuple):
 class Colour(object):
     """Hold LEGO colour data."""
 
-    __slots__ = ('_id', '_data', '_bzColour')
+    __slots__ = ('_id', '_data', '_parsedColour')
+    # Regex to parse (B=...,G=...,R=...) string
+    _bgrRe = re.compile(r'B=(\d+),G=(\d+),R=(\d+)')
 
     def __init__(self, data, id):
+        """
+        Initialize the Colour from a CSV row dictionary.
+
+        Args:
+            data (dict): A row from a csv.DictReader.
+            id (int): The material ID.
+        """
         self._data = data
         self._id = id
-        self._bzColour = {}
+        self._parsedColour = self._parseBgrString(self.data['Color'])
 
-        for key, colourSpace in (('acesCG', 'acescg'), ('sRGB', 'srgb'), ('maya_primaries', 'srgb')):
-            try:
-                colour = data['BlueZooColor'][key]
-            except KeyError:
-                continue
-            if colour is not None:
-                self._bzColour[key] = ColourSpaceTransform(colour, colourSpace=colourSpace)
+    def _parseBgrString(self, bgrString):
+        """Parse (B=,G=,R=) string into (R, G, B) tuple in 0-255 range."""
+        match = self._bgrRe.search(bgrString)
+        # Assumes match is always found
+        b, g, r = map(float, match.groups())
+        return (r, g, b)
 
     def __repr__(self):
-        return '<{} {} "{}">'.format(type(self).__name__, self.id, self.data.get('Color', 'unknown'))
+        return '<{} {} "{}">'.format(type(self).__name__, self.id, self.data.get('Name', 'unknown'))
 
     @property
     def id(self):
@@ -104,79 +109,87 @@ class Colour(object):
 
     @property
     def data(self):
-        """Get the colour data."""
+        """Get the colour data (the raw CSV row dict)."""
         return self._data
 
     @property
     def name(self, raw=False):
         """Get the colour name."""
         try:
+            name_str = self.data['Name']
             if raw:
-                return self.data['Color']
-            return '#{} {}'.format(self.id, self.data['Color'])
+                return name_str
+            return '#{} {}'.format(self.id, name_str)
         except KeyError:
             return None
 
     @property
     def active(self):
         """If the colour is active."""
-        return self.data.get('Active', True)
+        return self.data.get('bIsActive', 'FALSE').upper() == 'TRUE'
 
     @property
     def shaderVersion(self):
         """Shader version of the colour."""
-        return self.data.get('ShaderVersion', 1.0)
+        # This property was in the JSON but not the CSV
+        return 1.0
+
+    @property
+    def isStandard(self):
+        """If the colour is refractive (Transparent)."""
+        return self.data.get('MaterialType') == 'Standard'
 
     @property
     def isRefractive(self):
-        """If the colour is refractive."""
-        return self.data.get('isRefractive', False)
+        """If the colour is refractive (Transparent)."""
+        return self.isTransparent
+
+    @property
+    def isTransparent(self):
+        """If the colour is refractive (Transparent)."""
+        return self.data.get('MaterialType') == 'Transparent'
 
     @property
     def isMetallic(self):
         """If the colour is metallic."""
-        return self.data.get('isMetallic', False)
+        # Assumes 'Metallic' key exists and is '0' or '1'
+        return bool(int(self.data['Metallic']))
 
     @property
     def isGlitter(self):
         """If the colour has glitter."""
-        return self.data.get('hasGlitter', False)
+        # This property was in the JSON but not the CSV
+        return False
 
     @property
     def isOpalescent(self):
         """If the colour is opalescent."""
-        return self.data.get('isOpalescent', False)
+        # This property was in the JSON but not the CSV
+        return False
+
+    @property
+    def isRubber(self):
+        """If the colour is refractive (Transparent)."""
+        return self.data.get('MaterialType') == 'Rubber'
 
     @property
     def bzColour(self):
-        """Get the Blue Zoo colour override."""
-        if 'maya_primaries' in self._bzColour:
-            return self._bzColour['maya_primaries'].rgb()
-        elif 'sRGB' in self._bzColour:
-            return self._bzColour['sRGB'].rgb()
-        elif 'acesCG' in self._bzColour:
-            return self._bzColour['acesCG'].rgb()
+        """Get the main sRGB colour."""
+        # bzColour was an override, but now it's the main colour
         return self.viewportColour.rgb()
-
-    def _chooseBestColour(self, key):
-        """Choose the best colour to use."""
-        if key in self.data:
-            if self.isRefractive:
-                for colourData in self.data[key]:
-                    if 'refraction' in colourData[3].lower():
-                        return colourData
-            return self.data[key][0]
-        return [0, 0, 0, 0]
 
     @property
     def viewportColour(self):
         """Choose a colour for the viewport."""
-        return ColourSpaceTransform(self._chooseBestColour('Viewport'))
+        # The CSV has one color, so we use it.
+        # Pass the 0-255 (R, G, B) tuple to the transform class
+        return ColourSpaceTransform(self._parsedColour)
 
     @property
     def productionColour(self):
         """Choose a colour for production."""
-        return ColourSpaceTransform(self._chooseBestColour('Production'))
+        # The CSV has one color, so we use it.
+        return ColourSpaceTransform(self._parsedColour)
 
 
 class ColourPalette(object):
@@ -184,7 +197,13 @@ class ColourPalette(object):
 
     __slots__ = ('_colours', '_filePath')
 
-    def __init__(self, filePath='Y:/LEGO/1880s_LegoCity2025/Libraries/Shader_Library/Color_ID_List_BZ.json'):
+    def __init__(self, filePath):
+        """
+        Initialize the palette from a CSV file.
+
+        Args:
+            filePath (str): Path to the new CSV colour palette.
+        """
         self._colours = {}
         self.filePath = filePath
 
@@ -199,12 +218,18 @@ class ColourPalette(object):
 
     @filePath.setter
     def filePath(self, palette):
-        """Set a new palette file path."""
+        """Set a new palette file path and load it."""
         self._filePath = palette
+        self._colours.clear()  # Clear old data before loading
 
         with open(self._filePath) as f:
-            paletteData = json.load(f).items()
-        self._colours = {int(matID): Colour(data, int(matID)) for matID, data in paletteData}
+            # Use csv.DictReader to read the CSV using its headers
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Assume CSV is perfectly formatted:
+                # '---' key exists and its value is an integer
+                matID = int(row['---'])
+                self._colours[matID] = Colour(row, matID)
 
     def colour(self, matID, default=None):
         """Get a single colour."""
@@ -213,12 +238,3 @@ class ColourPalette(object):
     def colours(self):
         """Get multiple colours."""
         return list(self._colours.values())
-
-    def save(self, filePath=None):
-        """Save the palette data to disk."""
-        if filePath is None:
-            filePath = self.filePath
-
-        data = {str(colour.id): colour.data for colour in self.colours()}
-        with open(self.filePath, 'w') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4, sort_keys=True)

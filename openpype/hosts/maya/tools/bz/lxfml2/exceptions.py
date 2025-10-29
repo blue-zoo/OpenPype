@@ -21,3 +21,7 @@ class UserExceptionList(list):
             return False
         if self:
             raise UserWarningError(*self)
+
+
+class NoMeshError(Exception):
+    """If an import has no mesh."""

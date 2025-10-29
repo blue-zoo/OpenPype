@@ -20,10 +20,9 @@ def applyPalette(path=None):
         # Get the palette colour from the material ID
         # Use only the first material ID value
         try:
-            materialIDs = mc.getAttr(brick + '.LEGO_materialIDs')
+            materialID = mc.getAttr(brick + '.LEGO_materialID')
         except ValueError:
             continue
-        materialID = int(materialIDs.split(',')[0])
         colourData = palette.colour(materialID)
         if colourData is None:
             continue
@@ -35,30 +34,36 @@ def applyPalette(path=None):
         mc.setAttr(brick + '.LEGO_colourB', colour.b / 255)
 
         # Set material class and type
+        materialType = 0
+        materialClass = 0
         if mc.getAttr(brick + '.LEGO_designID') in RUBBER_BRICKS:
-            mc.setAttr(brick + '.LEGO_materialClass', 2)
-            mc.setAttr(brick + '.LEGO_materialType', 0)
-        elif colourData.isRefractive:
-            mc.setAttr(brick + '.LEGO_materialClass', 3)
-            mc.setAttr(brick + '.LEGO_materialType', 0)
+            materialType = 5
+        elif colourData.isTransparent:
+            materialType = 1
         elif colourData.isMetallic:
-            mc.setAttr(brick + '.LEGO_materialClass', 4)
+            materialType = 2
             nameParts = colourData.name.split('_')
             if 'Chrome' in nameParts:
-                mc.setAttr(brick + '.LEGO_materialType', 1)
-            elif 'Ink' in nameParts:
-                mc.setAttr(brick + '.LEGO_materialType', 2)
+                materialClass = 2
             else:
-                mc.setAttr(brick + '.LEGO_materialType', 0)
-        else:
-            mc.setAttr(brick + '.LEGO_materialClass', 0)
-            mc.setAttr(brick + '.LEGO_materialType', 0)
+                materialClass = 0
+            if materialID in (335, 336, 337, 344):
+                materialClass = 1
+        elif colourData.isGlitter:
+            materialType = 3
+        elif colourData.isOpalescent:
+            materialType = 4
+        mc.setAttr(brick + '.LEGO_materialClass', materialClass)
+        mc.setAttr(brick + '.LEGO_materialType', materialType)
 
 
 def _setVertexColours(node, colourOverride=None, colourSetName='LEGO_colourSet'):
     """Set vertex colours on a brick."""
     # Skip for locators
-    if isBrickALocator(node):
+    try:
+        if isBrickALocator(node):
+            return
+    except TypeError:
         return
 
     # Read the colour from the existing attributes
@@ -69,9 +74,12 @@ def _setVertexColours(node, colourOverride=None, colourSetName='LEGO_colourSet')
     else:
         r, g, b = colourOverride
 
+    allMeshes = getDescendants(node, nodeType='mesh')
+    allMeshTransforms = mc.listRelatives(allMeshes, parent=True, fullPath=True) or []
+
     # Create or get the set
-    for childNode in getDescendants(node, nodeType='transform'):
-        colourSets = mc.polyColorSet(childNode, currentPerInstanceSet=True, query=True) or ()
+    for childNode in allMeshTransforms:
+        colourSets = mc.polyColorSet(childNode, currentPerInstanceSet=True, query=True) or []
         for colourSet in colourSets:
             if colourSetName in colourSet:
                 mc.polyColorSet(childNode, currentColorSet=True, colorSet=colourSet)
@@ -80,8 +88,10 @@ def _setVertexColours(node, colourOverride=None, colourSetName='LEGO_colourSet')
             mc.polyColorSet(childNode, create=True, colorSet=colourSetName, unshared=True, perInstance=True)
             mc.polyColorSet(childNode, currentColorSet=True, colorSet=colourSetName)
 
-        # Set the vertex colours
-        mc.polyColorPerVertex(childNode, r=r, g=g, b=b, a=1, colorDisplayOption=True)
+        try:
+            mc.polyColorPerVertex(childNode, r=r, g=g, b=b, a=1, colorDisplayOption=True)
+        except RuntimeError as e:
+            raise RuntimeError('{}: {}'.format(childNode, e))
 
 
 def setVertexColours(colourSetName='LEGO_colourSet'):

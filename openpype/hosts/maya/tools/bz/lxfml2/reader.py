@@ -7,6 +7,7 @@ Known version differences:
 
 from __future__ import absolute_import
 
+import re
 from collections import namedtuple
 
 try:
@@ -86,10 +87,6 @@ class _Part(_ElementItem):
     def bones(self):
         for bone in self.children('Bone'):
             yield Bone(self, bone, self.version)
-
-    @property
-    def filename(self):
-        return self.designID.split(';')[0] + '.obj'
 
 
 class PartRigid(_Part):
@@ -242,17 +239,17 @@ class LXFML(object):
             </Configuration>
         </Configurations>
         """
-        def processBuild(build, parent=None):
-            name = build.attrib['name'] + '_GRP'
-            if parent is not None:
-                name = '{}|{}'.format(parent.attrib['name'] + '_GRP', name)
+        def processBuild(build, parentName=None):
+            name = formatGroupName(build.attrib['name'])
+            if parentName is not None:
+                name = '{}|{}'.format(parentName, name)
 
             uuids = [brick.attrib['brickRef'] for brick in build.findall('Brick')]
             bricks = map(allBricks.__getitem__, uuids)
             yield Group(name, list(bricks))
 
             for child in build.findall('Build'):
-                for result in processBuild(child, build):
+                for result in processBuild(child, parentName=name):
                     yield result
 
         allBricks = {brick.uuid: brick for brick in self.bricks}
@@ -262,3 +259,13 @@ class LXFML(object):
                 for build in configuration.findall('Build'):
                     for result in processBuild(build):
                         yield result
+
+
+def formatGroupName(name):
+    if name in ('_sockets', '_pivot'):
+        return name
+    match = re.match(r'^(?:C_)?(.*?)(?:_GRP)?$', name)
+    assert match is not None
+    body = match.group(1)
+    stripped = re.sub(r'[^a-zA-Z0-9]', '', body)
+    return 'C_{}_GRP'.format(stripped)

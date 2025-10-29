@@ -5,16 +5,26 @@ import os
 import re
 import webbrowser
 
-from qtpy import  QtCore, QtWidgets
-from . import layoutUi
+from qtpy import QtCore, QtWidgets
+from qtpy.uic import loadUi
 
 from ..vfxwindow import VFXWindow
 
 from .everything_else import TemporaryCursor
 from .exceptions import UserWarningError, UserExceptionList
+from .reader import formatGroupName
+from .constants import DEFAULT_STYLE_PRESET, STYLE_PRESETS
 
 
 logger = logging.getLogger('lego-importer')
+
+
+STYLE_ORDER = [
+    'Watertight',
+    'Render',
+    'Realtime',
+    'Game',
+]
 
 
 def _clean_input(path):
@@ -22,7 +32,12 @@ def _clean_input(path):
     return path.strip('-\'" \n')
 
 
-class GUI(VFXWindow,layoutUi.Ui_MainWindow):
+def _getIcon(name):
+    print(os.path.join(os.path.dirname(__file__), 'icons', name))
+    return os.path.join(os.path.dirname(__file__), 'icons', name)
+
+
+class GUI(VFXWindow):
     WindowID = 'bz.lego.importer'
     WindowName = 'LEGO Importer'
     WindowDockable = False
@@ -30,30 +45,25 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
     def __init__(self, parent=None, **kwargs):
         super(GUI, self).__init__(parent=parent, **kwargs)
         self.setWindowPalette('maya')
-        self.setupUi(self)
-        self.xmlPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Model_Library\_importingTestA\legoExample.lxfml')
-        self.geoPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Model_Library\_legoLibrary\High_processed\m')
-        self.shdPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
-        self.palettePath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Shader_Library\Color_ID_List_BZ.json')
-        self.decalPath.setPlaceholderText(r'Y:\LEGO\1880s_LegoCity2025\Libraries\Texture_Library\Decorations')
+        loadUi(os.path.join(os.path.dirname(__file__), 'layout.ui'), self)
 
         self.menuClose.triggered.connect(self.close)
         self.menuDocs.triggered.connect(lambda: webbrowser.open('https://sites.google.com/blue-zoo.co.uk/software-tools-workflow/software-tools-workflow-home-page/software/maya/blue-zoo-maya-tools/lego-importer'))
 
-        self.xmlOpen.setIconPath('icons/SP_DirOpenIcon.png')
-        self.geoOpen.setIconPath('icons/SP_DirOpenIcon.png')
-        self.shdOpen.setIconPath('icons/SP_DirOpenIcon.png')
-        self.paletteOpen.setIconPath('icons/SP_DirOpenIcon.png')
-        self.decalOpen.setIconPath('icons/SP_DirOpenIcon.png')
-        self.shaderSwitchValid.setIconPath('icons/valid.png')
-        self.shaderSwitchInvalid.setIconPath('icons/invalid.png')
-        self.maskSwitchValid.setIconPath('icons/valid.png')
-        self.maskSwitchInvalid.setIconPath('icons/invalid.png')
+        self.xmlOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
+        self.atomOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
+        self.shdOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
+        self.paletteOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
+        self.decalOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
+        self.shaderSwitchValid.setIconPath(_getIcon('valid.png'))
+        self.shaderSwitchInvalid.setIconPath(_getIcon('invalid.png'))
+        self.maskSwitchValid.setIconPath(_getIcon('valid.png'))
+        self.maskSwitchInvalid.setIconPath(_getIcon('invalid.png'))
 
         self.xmlOpen.clicked.connect(self.chooseXmlFile)
-        self.geoOpen.clicked.connect(self.chooseGeoFile)
+        self.atomOpen.clicked.connect(self.chooseAtomFile)
         self.shdOpen.clicked.connect(self.chooseShaderFile)
-        self.paletteOpen.clicked.connect(self.choosePaletteFile)
+        self.shdOpen.clicked.connect(self.choosePaletteFile)
 
         self.nsInput.textChanged.connect(self.lsShaderSwitch)
         self.switchInput.textChanged.connect(self.lsShaderSwitch)
@@ -66,25 +76,29 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
 
         self.runImport.clicked.connect(self.importAll)
 
+        self.stylePresets.clear()
+        self.stylePresets.addItems(sorted(STYLE_PRESETS))
+        self.stylePresets.setCurrentText(DEFAULT_STYLE_PRESET)
+
     def getXmlPath(self):
         """Get the path to the XML file."""
         return _clean_input(self.xmlPath.text() or self.xmlPath.placeholderText())
 
-    def getGeoPath(self):
+    def getXmlPaths(self):
+        """Get the path to the XML file and its group."""
+        return [path.strip() for path in self.getXmlPath().split(',')]
+
+    def getAtomPath(self):
         """Get the path to the geometry folder."""
-        geoPath = _clean_input(self.geoPath.text() or self.geoPath.placeholderText())
-        geoExt = _clean_input(self.geoExt.text() or self.geoExt.placeholderText())
-        if os.path.isdir(geoPath) and geoPath[-1] != os.path.sep:
-            geoPath += os.path.sep
-        return geoPath + '*' + geoExt
+        return _clean_input(self.atomPath.text() or self.atomPath.placeholderText())
 
     def getShaderPath(self):
         """Get the path to the shader file."""
         return _clean_input(self.shdPath.text() or self.shdPath.placeholderText())
 
-    def getBrickGroup(self):
+    def getBrickGroups(self):
         """Get the name to give to the brick group."""
-        return _clean_input(self.geoParent.text() or self.geoParent.placeholderText())
+        return [self.formatGroupName(xmlPath) for xmlPath in self.getXmlPaths()]
 
     def getShaderNamespace(self):
         """Get the namespace to give to the shader."""
@@ -122,38 +136,31 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
             return ''
         return os.path.normpath(path)
 
+    def _openFiles(self, title, fileDir, extensions):
+        """Prompt the user to choose one or more files."""
+        paths, filter = QtWidgets.QFileDialog.getOpenFileNames(self, title, fileDir, extensions)
+        if not paths:
+            return []
+        return [os.path.normpath(path) for path in paths]
+
+    def _openDirectory(self, title, fileDir):
+        """Prompt the user to choose a directory."""
+        path = QtWidgets.QFileDialog.getExistingDirectory(self, title, fileDir)
+        if not path:
+            return ''
+        return os.path.normpath(path)
+
     @QtCore.Slot()
     def chooseXmlFile(self):
         """Prompt the user to choose an XML file."""
-        filePath = self._openFile('Select LEGO XML File', self.getXmlPath(), 'LEGO XML Files (*.xml *.lxfml)')
-        self.xmlPath.setText(filePath)
+        filePaths = self._openFiles('Select LEGO XML File', self.getXmlPaths()[0], 'LEGO XML Files (*.xml *.lxfml)')
+        self.xmlPath.setText(', '.join(filePaths))
 
     @QtCore.Slot()
-    def chooseGeoFile(self):
-        """Prompt the user to choose a geometry file.
-
-        This will determine the filename format based on the brick ID.
-        In case of multiple numbers in the filename, the longest will be chosen.
-        """
-        filePath = self._openFile('Select (any) LEGO Geometry File', self.getGeoPath(),
-                                  'LEGO Geometry Files (*.ma *.mb *.obj)')
-        if not filePath:
-            return
-
-        # Separate out the brick ID
-        fileDir = os.path.dirname(filePath)
-        fileName, fileExt = os.path.splitext(os.path.basename(filePath))
-        fileNameInts = re.findall(r'\d+', fileName)
-        if not fileNameInts:
-            logger.warning('Unable to detect brick ID in file path.')
-            return
-        brickID = max(fileNameInts, key=len)
-
-        # Set the path
-        wildcardPath = os.path.join(fileDir, fileName.replace(brickID, '*') + fileExt)
-        pathStart, pathEnd = wildcardPath.split('*')
-        self.geoPath.setText(pathStart)
-        self.geoExt.setText(pathEnd)
+    def chooseAtomFile(self):
+        folderPath = self._openDirectory('Select Atom Database Root Folder', self.getAtomPath())
+        if folderPath:
+            self.atomPath.setText(folderPath)
 
     @QtCore.Slot()
     def chooseShaderFile(self):
@@ -164,7 +171,7 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
     @QtCore.Slot()
     def choosePaletteFile(self):
         """Prompt the user to choose a shader file."""
-        filePath = self._openFile('Select LEGO Palette File', self.getPalettePath(), 'LEGO Palette Files (*.json)')
+        filePath = self._openFile('Select LEGO Palette File', self.getPalettePath(), 'LEGO Palette Files (*.csv)')
         self.palettePath.setText(filePath)
 
     @QtCore.Slot()
@@ -209,9 +216,9 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
     def importAll(self):
         """Import everything and notify the user of any errors."""
         failed = []
-        if self.geoGrp.isChecked():
+        if self.atomGrp.isChecked():
             try:
-                self.runImportGeo()
+                self.runImportAtom()
             except UserWarningError as e:
                 failed.extend(e)
             except Exception as e:  # pylint: disable=broad-except
@@ -261,25 +268,26 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
             msg.setText('\n'.join(lines))
             msg.exec_()
 
+    def formatGroupName(self, xmlPath):
+        return formatGroupName(os.path.splitext(os.path.basename(xmlPath))[0])
+
     @TemporaryCursor()
-    def runImportGeo(self):
+    def runImportAtom(self):
         """Import the brick geometry."""
         from .maya.geometry import setupScene, BrickDirectory
 
-        setupScene(
-            self.getXmlPath(),
-            BrickDirectory(self.getGeoPath(), group=self.getBrickGroup()),
-            groups=self.createGroups.isChecked(),
-            selectionSets=self.createSelectionSets.isChecked(),
-            updateUVs=self.updateUVs.isChecked(),
-            deleteColourSets=self.deleteColourSets.isChecked(),
-            deleteHistory=self.deleteHistory.isChecked(),
-            updateDisplayEdges=self.updateDisplayEdges.isChecked(),
-            setTexelDensity=self.setTexelDensity.isChecked(),
-            softenEdges=self.softenEdges.isChecked(),
-            updateDisplayColourChannel=self.updateDisplayColourChannel.isChecked(),
-            shaderNamespace=self.getShaderNamespace(),
-        )
+        for xmlPath in self.getXmlPaths():
+            setupScene(
+                xmlPath,
+                BrickDirectory(self.getAtomPath(), self.stylePresets.currentText(),
+                               self.getPalettePath(), group=self.formatGroupName(xmlPath)),
+                groups=self.createGroups.isChecked(),
+                selectionSets=self.createSelectionSets.isChecked(),
+                sockets=self.sockets.isChecked(),
+                pivots=self.pivots.isChecked(),
+                collapseGeo=self.collapseGeo.isChecked(),
+                rename=self.rename.isChecked(),
+            )
 
     @TemporaryCursor()
     def runAssignShaders(self):
@@ -300,7 +308,8 @@ class GUI(VFXWindow,layoutUi.Ui_MainWindow):
     @TemporaryCursor()
     def runScaleBricks(self, scale):
         from .maya.utils import scaleObject
-        scaleObject(self.getBrickGroup(), scale)
+        for group in self.getBrickGroups():
+            scaleObject(group, scale, xform=self.scaleXform.isChecked())
 
     @TemporaryCursor()
     def runApplyPalette(self):
