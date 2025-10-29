@@ -158,8 +158,8 @@ class UEProjectGenerationWorker(UEWorker):
 
         if return_code and return_code != 0:
             # Return code is 1 in this instance..
-            if return_code == 1 and self.ue_version == "5.5":
-                self.log.emit('Ignoring return code {c} from 5.5'.format(c=return_code))
+            if return_code == 1 and self.ue_version in ["5.5", "5.6"]:
+                self.log.emit('Ignoring return code {c} from 5.5/5.6'.format(c=return_code))
             else:
                 msg = (
                     f"Failed to generate {self.project_name} "
