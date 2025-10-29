@@ -64,6 +64,7 @@ class GUI(VFXWindow):
         self.atomOpen.clicked.connect(self.chooseAtomFile)
         self.shdOpen.clicked.connect(self.chooseShaderFile)
         self.shdOpen.clicked.connect(self.choosePaletteFile)
+        self.commonPartOpen.clicked.connect(self.chooseCommonPartsFile)
 
         self.nsInput.textChanged.connect(self.lsShaderSwitch)
         self.switchInput.textChanged.connect(self.lsShaderSwitch)
@@ -114,6 +115,9 @@ class GUI(VFXWindow):
     def getDecalPath(self):
         """Get the path to the decal file."""
         return _clean_input(self.decalPath.text() or self.decalPath.placeholderText())
+
+    def getCommonPartsPath(self):
+        return _clean_input(self.commonPartsPath.text() or self.commonPartsPath.placeholderText())
 
     def getShaderSwitch(self):
         """Get the decal shader switch."""
@@ -173,6 +177,11 @@ class GUI(VFXWindow):
         """Prompt the user to choose a shader file."""
         filePath = self._openFile('Select LEGO Palette File', self.getPalettePath(), 'LEGO Palette Files (*.csv)')
         self.palettePath.setText(filePath)
+
+    @QtCore.Slot()
+    def chooseCommonPartsFile(self):
+        filePath = self._openDirectory('Select Common Parts Path', self.getCommonPartsPath())
+        self.commonPartsPath.setText(filePath)
 
     @QtCore.Slot()
     def lsShaderSwitch(self):
@@ -287,6 +296,7 @@ class GUI(VFXWindow):
                 pivots=self.pivots.isChecked(),
                 collapseGeo=self.collapseGeo.isChecked(),
                 rename=self.rename.isChecked(),
+                commonPartsPath=self.getCommonPartsPath() if self.replaceCommonParts.isChecked() else None,
             )
 
     @TemporaryCursor()
