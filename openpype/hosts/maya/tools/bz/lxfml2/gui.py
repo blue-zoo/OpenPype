@@ -234,7 +234,7 @@ class GUI(VFXWindow):
                 logger.exception(e)
                 failed.append(e)
 
-        if self.scaleGrp.isChecked():
+        if self.scaleGrp.isChecked() and self.scaleValue.value() != 1:
             try:
                 self.runScaleBricks(self.scaleValue.value())
             except Exception as e:  # pylint: disable=broad-except
