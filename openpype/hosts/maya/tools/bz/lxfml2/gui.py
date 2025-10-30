@@ -37,7 +37,6 @@ def _clean_input(path):
 
 
 def _getIcon(name):
-    print(os.path.join(os.path.dirname(__file__), 'icons', name))
     return os.path.join(os.path.dirname(__file__), 'icons', name)
 
 
