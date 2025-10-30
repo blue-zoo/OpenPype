@@ -510,4 +510,4 @@ def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, sockets
             renameSceneObjects(nodesToRename)
 
         if commonPartsPath is not None and commonPartsStyle is not None:
-            run_style_update(brickDirectory.stylePreset, commonPartsPath)
+            run_style_update(commonPartsStyle, commonPartsPath)
