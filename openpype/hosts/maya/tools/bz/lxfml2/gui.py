@@ -20,7 +20,7 @@ logger = logging.getLogger('lego-importer')
 
 
 os.environ.setdefault('BZ_LXFML_BRICK_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\Primitives')
-os.environ.setdefault('BZ_LXFML_BRICK_STYLE', 'Update default brick preset')
+os.environ.setdefault('BZ_LXFML_BRICK_STYLE', 'Render + Watertight')
 os.environ.setdefault('BZ_LXFML_DECORATIONS', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\Texture_Library\Decorations')
 os.environ.setdefault('BZ_LXFML_COMMONPARTS_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts')
 os.environ.setdefault('BZ_LXFML_COMMONPARTS_STYLE', 'RenderUnreal')
