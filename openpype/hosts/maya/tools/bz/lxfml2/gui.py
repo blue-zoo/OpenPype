@@ -13,18 +13,21 @@ from ..vfxwindow import VFXWindow
 from .everything_else import TemporaryCursor
 from .exceptions import UserWarningError, UserExceptionList
 from .reader import formatGroupName
-from .constants import DEFAULT_STYLE_PRESET, STYLE_PRESETS
+from .constants import STYLE_PRESETS
 
 
 logger = logging.getLogger('lego-importer')
 
 
-STYLE_ORDER = [
-    'Watertight',
-    'Render',
-    'Realtime',
-    'Game',
-]
+os.environ.setdefault('BZ_LXFML_PRIMITIVES', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\Primitives')
+os.environ.setdefault('BZ_LXFML_DECORATIONS', r'F:\HighlyUnlikely\1903s_SFLEGOMaster\Libraries\Texture_Library\Decorations')
+os.environ.setdefault('BZ_LXFML_COMMONPARTS', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts')
+os.environ.setdefault('BZ_LXFML_SHADER_PATH', r'F:\HighlyUnlikely\1903s_SFLEGOMaster\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
+os.environ.setdefault('BZ_LXFML_SHADER_NS', 'shaders')
+os.environ.setdefault('BZ_LXFML_SHADER_GROUP', 'PLASTIC_MASTER_SG')
+os.environ.setdefault('BZ_LXFML_PALETTE', r'Y:\LEGO\1882s_LegoCityBricksburg\Libraries\Script_Library\LEGOColorPalette\LegoBrickCol_BZ_ACES_CUSTOM.csv')
+os.environ.setdefault('BZ_LXFML_SCALE', '20.0')
+os.environ.setdefault('BZ_LXFML_STYLE', 'Render')
 
 
 def _clean_input(path):
@@ -46,6 +49,16 @@ class GUI(VFXWindow):
         super(GUI, self).__init__(parent=parent, **kwargs)
         self.setWindowPalette('maya')
         loadUi(os.path.join(os.path.dirname(__file__), 'layout.ui'), self)
+
+        self.atomPath.setPlaceholderText(os.environ['BZ_LXFML_PRIMITIVES'])
+        self.commonPartsPath.setPlaceholderText(os.environ['BZ_LXFML_COMMONPARTS'])
+        self.shdPath.setPlaceholderText(os.environ['BZ_LXFML_SHADER_PATH'])
+        self.nsInput.setPlaceholderText(os.environ['BZ_LXFML_SHADER_NS'])
+        self.sgInput.setPlaceholderText(os.environ['BZ_LXFML_SHADER_GROUP'])
+        self.palettePath.setPlaceholderText(os.environ['BZ_LXFML_PALETTE'])
+        self.scaleValue.setValue(float(os.environ['BZ_LXFML_SCALE']))
+        self.scaleGrp.setChecked(float(os.environ['BZ_LXFML_SCALE']) != 1)
+        self.decalPath.setPlaceholderText(os.environ['BZ_LXFML_DECORATIONS'])
 
         self.menuClose.triggered.connect(self.close)
         self.menuDocs.triggered.connect(lambda: webbrowser.open('https://sites.google.com/blue-zoo.co.uk/software-tools-workflow/software-tools-workflow-home-page/software/maya/blue-zoo-maya-tools/lego-importer'))
@@ -79,7 +92,7 @@ class GUI(VFXWindow):
 
         self.stylePresets.clear()
         self.stylePresets.addItems(sorted(STYLE_PRESETS))
-        self.stylePresets.setCurrentText(DEFAULT_STYLE_PRESET)
+        self.stylePresets.setCurrentText(os.environ['BZ_LXFML_STYLE'])
 
     def getXmlPath(self):
         """Get the path to the XML file."""

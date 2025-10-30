@@ -8,5 +8,3 @@ STYLE_PRESETS = {
         'Transparent': ['Realtime'],
     },
 }
-
-DEFAULT_STYLE_PRESET = 'Render'
