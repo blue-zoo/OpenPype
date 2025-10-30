@@ -21,7 +21,7 @@ logger = logging.getLogger('lego-importer')
 
 os.environ.setdefault('BZ_LXFML_BRICK_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\Primitives')
 os.environ.setdefault('BZ_LXFML_BRICK_STYLE', 'Render + Watertight')
-os.environ.setdefault('BZ_LXFML_DECORATIONS', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\Texture_Library\Decorations')
+os.environ.setdefault('BZ_LXFML_DECAL_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\Texture_Library\Decorations')
 os.environ.setdefault('BZ_LXFML_COMMONPARTS_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts')
 os.environ.setdefault('BZ_LXFML_COMMONPARTS_STYLE', 'RenderUnreal')
 os.environ.setdefault('BZ_LXFML_SHADER_PATH', r'Y:\LEGO\1882s_LegoCityBricksburg\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
@@ -29,6 +29,7 @@ os.environ.setdefault('BZ_LXFML_SHADER_NS', 'shaders')
 os.environ.setdefault('BZ_LXFML_SHADER_GROUP', 'PLASTIC_MASTER_SG')
 os.environ.setdefault('BZ_LXFML_PALETTE', r'Y:\LEGO\1882s_LegoCityBricksburg\Libraries\Script_Library\LEGOColorPalette\LegoBrickCol_BZ_ACES_CUSTOM.csv')
 os.environ.setdefault('BZ_LXFML_SCALE', '20.0')
+os.environ.setdefault('BZ_LXFML_DECAL_ENABLED', '0')
 
 
 def _clean_input(path):
@@ -64,7 +65,8 @@ class GUI(VFXWindow):
             self.scaleGrp.setChecked(True)
             self.scaleValue.setValue(scale)
         self.scaleGrp.setChecked(float(os.environ['BZ_LXFML_SCALE']) != 1)
-        self.decalPath.setPlaceholderText(os.environ['BZ_LXFML_DECORATIONS'])
+        self.decalPath.setPlaceholderText(os.environ['BZ_LXFML_DECAL_PATH'])
+        self.decalGrp.setChecked(bool(int(os.environ['BZ_LXFML_DECAL_ENABLED'])))
 
         self.menuClose.triggered.connect(self.close)
         self.menuDocs.triggered.connect(lambda: webbrowser.open('https://sites.google.com/blue-zoo.co.uk/software-tools-workflow/software-tools-workflow-home-page/software/maya/blue-zoo-maya-tools/lego-importer'))
