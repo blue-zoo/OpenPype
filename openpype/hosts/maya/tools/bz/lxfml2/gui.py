@@ -21,7 +21,7 @@ logger = logging.getLogger('lego-importer')
 
 os.environ.setdefault('BZ_LXFML_BRICK_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\Primitives')
 os.environ.setdefault('BZ_LXFML_BRICK_STYLE', 'Render')
-os.environ.setdefault('BZ_LXFML_DECORATIONS', r'F:\HighlyUnlikely\1903s_SFLEGOMaster\Libraries\Texture_Library\Decorations')
+os.environ.setdefault('BZ_LXFML_DECORATIONS', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\Texture_Library\Decorations')
 os.environ.setdefault('BZ_LXFML_COMMONPARTS_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts')
 os.environ.setdefault('BZ_LXFML_COMMONPARTS_STYLE', 'RenderUnreal')
 os.environ.setdefault('BZ_LXFML_SHADER_PATH', r'F:\HighlyUnlikely\1903s_SFLEGOMaster\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
@@ -353,7 +353,7 @@ class GUI(VFXWindow):
     def runScaleBricks(self, scale):
         from .maya.utils import scaleObject
         for group in self.getBrickGroups():
-            scaleObject(group, scale, xform=self.scaleXform.isChecked())
+            scaleObject(group, scale, xform=self.scaleXform.isChecked(), absolute=self.scaleAbs.isChecked())
 
     @TemporaryCursor()
     def runApplyPalette(self):

@@ -221,7 +221,7 @@ Some processing is done on the path to determine where the brick ID can be found
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="commonPartOpen">
+          <widget class="PromotedIconButton" name="commonPartOpen">
            <property name="text">
             <string/>
            </property>
@@ -231,19 +231,6 @@ Some processing is done on the path to determine where the brick ID can be found
        </item>
        <item>
         <layout class="QHBoxLayout" name="createLayout">
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
          <item>
           <widget class="QCheckBox" name="createGroups">
            <property name="text">
@@ -389,19 +376,6 @@ Some processing is done on the path to determine where the brick ID can be found
            </property>
           </widget>
          </item>
-         <item>
-          <spacer name="horizontalSpacer_7">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
         </layout>
        </item>
       </layout>
@@ -417,20 +391,69 @@ Some processing is done on the path to determine where the brick ID can be found
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QDoubleSpinBox" name="scaleValue">
-         <property name="suffix">
-          <string>x</string>
-         </property>
-         <property name="maximum">
-          <double>100000.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>20.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_7">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <item>
+          <widget class="QDoubleSpinBox" name="scaleValue">
+           <property name="suffix">
+            <string>x</string>
+           </property>
+           <property name="maximum">
+            <double>100000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>20.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_13">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="scaleAbs">
+           <property name="text">
+            <string>Absolute</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+           <attribute name="buttonGroup">
+            <string notr="true">buttonGroup</string>
+           </attribute>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="scaleRel">
+           <property name="text">
+            <string>Relative</string>
+           </property>
+           <attribute name="buttonGroup">
+            <string notr="true">buttonGroup</string>
+           </attribute>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_11">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
          <item>
           <widget class="QRadioButton" name="scaleXform">
            <property name="text">
@@ -439,6 +462,9 @@ Some processing is done on the path to determine where the brick ID can be found
            <property name="checked">
             <bool>true</bool>
            </property>
+           <attribute name="buttonGroup">
+            <string notr="true">buttonGroup_2</string>
+           </attribute>
           </widget>
          </item>
          <item>
@@ -446,6 +472,9 @@ Some processing is done on the path to determine where the brick ID can be found
            <property name="text">
             <string>Attribute</string>
            </property>
+           <attribute name="buttonGroup">
+            <string notr="true">buttonGroup_2</string>
+           </attribute>
           </widget>
          </item>
         </layout>
@@ -921,4 +950,8 @@ Warning: This may lock up the PC on heavier imports. The reason is not known.</s
    </hints>
   </connection>
  </connections>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+  <buttongroup name="buttonGroup_2"/>
+ </buttongroups>
 </ui>

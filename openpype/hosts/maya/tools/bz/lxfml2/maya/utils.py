@@ -15,14 +15,19 @@ def getSceneBricks():
     return [node for node in nodes if mc.listRelatives(node, children=True, type='mesh')]
 
 
-def scaleObject(obj, scaleFactor, xform=True):
+def scaleObject(obj, scaleFactor, xform=True, absolute=False):
     """Scale an object by a factor."""
     if xform:
         scalePivot = mc.xform(obj, query=True, scalePivot=True, worldSpace=True)
-        mc.xform(obj, scalePivot=[0, 0, 0], worldSpace=1)
-        mc.xform(obj, scale=[scaleFactor, scaleFactor, scaleFactor], worldSpace=True, relative=True)
-        mc.xform(obj, scalePivot=[x * scaleFactor for x in scalePivot], worldSpace=True)
+        mc.xform(obj, scalePivot=[0, 0, 0], worldSpace=True)
+        mc.xform(obj, scale=[scaleFactor, scaleFactor, scaleFactor], worldSpace=True, relative=not absolute)
+        if absolute:
+            mc.xform(obj, scalePivot=scalePivot, worldSpace=True)
+        else:
+            mc.xform(obj, scalePivot=[x * scaleFactor for x in scalePivot], worldSpace=True)
     else:
         for attr in ('.sx', '.sy', '.sz'):
-            mc.setAttr(obj + attr, mc.getAttr(obj + attr) * scaleFactor)
-        mc.makeIdentity(obj, apply=True, translate=True, rotate=True, scale=True, normal=False, preserveNormals=True)
+            if absolute:
+                mc.setAttr(obj + attr, scaleFactor)
+            else:
+                mc.setAttr(obj + attr, mc.getAttr(obj + attr) * scaleFactor)
