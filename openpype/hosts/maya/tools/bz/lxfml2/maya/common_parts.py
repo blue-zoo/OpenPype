@@ -97,6 +97,7 @@ def import_fbx_get_root(fbx_path):
         new_transforms = transforms_after - transforms_before
 
         # Delete non transform / mesh nodes
+        cmds.sets(new_transforms, edit=True, forceElement='initialShadingGroup')
         toDelete = set(cmds.ls(new_nodes)) - set(cmds.ls(new_nodes, type=['transform', 'mesh', 'locator']))
         if toDelete:
             cmds.delete(toDelete)
