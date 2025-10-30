@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>792</width>
-    <height>708</height>
+    <height>739</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -127,7 +127,7 @@ Some processing is done on the path to determine where the brick ID can be found
          <item>
           <widget class="QLabel" name="stylePresetsLabel">
            <property name="text">
-            <string>Style Preset:</string>
+            <string>Brick Style:</string>
            </property>
           </widget>
          </item>
@@ -147,6 +147,50 @@ Some processing is done on the path to determine where the brick ID can be found
          </item>
          <item>
           <spacer name="horizontalSpacer_8">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Common Parts Style:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="commonPartsStyle">
+           <item>
+            <property name="text">
+             <string>Cinematic</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>RenderUnreal</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Render</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Realtime</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_10">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -843,5 +887,38 @@ Warning: This may lock up the PC on heavier imports. The reason is not known.</s
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>replaceCommonParts</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>label</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>644</x>
+     <y>181</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>447</x>
+     <y>123</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>replaceCommonParts</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>commonPartsStyle</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>689</x>
+     <y>186</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>542</x>
+     <y>127</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

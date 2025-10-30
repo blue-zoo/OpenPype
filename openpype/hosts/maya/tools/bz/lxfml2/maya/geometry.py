@@ -357,7 +357,8 @@ def addToDisplayLayer(layer, nodes):
 
 
 def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, sockets=True,
-               pivots=True, collapseGeo=True, rename=True, commonPartsPath=None, **kwargs):
+               pivots=True, collapseGeo=True, rename=True, commonPartsPath=None, commonPartsStyle=None,
+               **kwargs):
     """Load the brick files into the scene.
 
     Returns:
@@ -508,5 +509,5 @@ def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, sockets
                     break
             renameSceneObjects(nodesToRename)
 
-        if commonPartsPath is not None:
+        if commonPartsPath is not None and commonPartsStyle is not None:
             run_style_update(brickDirectory.stylePreset, commonPartsPath)

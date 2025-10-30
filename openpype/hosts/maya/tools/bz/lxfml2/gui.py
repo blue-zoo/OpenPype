@@ -19,15 +19,16 @@ from .constants import STYLE_PRESETS
 logger = logging.getLogger('lego-importer')
 
 
-os.environ.setdefault('BZ_LXFML_PRIMITIVES', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\Primitives')
+os.environ.setdefault('BZ_LXFML_BRICK_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\Primitives')
+os.environ.setdefault('BZ_LXFML_BRICK_STYLE', 'Render')
 os.environ.setdefault('BZ_LXFML_DECORATIONS', r'F:\HighlyUnlikely\1903s_SFLEGOMaster\Libraries\Texture_Library\Decorations')
-os.environ.setdefault('BZ_LXFML_COMMONPARTS', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts')
+os.environ.setdefault('BZ_LXFML_COMMONPARTS_PATH', r'Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts')
+os.environ.setdefault('BZ_LXFML_COMMONPARTS_STYLE', 'RenderUnreal')
 os.environ.setdefault('BZ_LXFML_SHADER_PATH', r'F:\HighlyUnlikely\1903s_SFLEGOMaster\Libraries\Shader_Library\shaders\master\published\master_shader.ma')
 os.environ.setdefault('BZ_LXFML_SHADER_NS', 'shaders')
 os.environ.setdefault('BZ_LXFML_SHADER_GROUP', 'PLASTIC_MASTER_SG')
 os.environ.setdefault('BZ_LXFML_PALETTE', r'Y:\LEGO\1882s_LegoCityBricksburg\Libraries\Script_Library\LEGOColorPalette\LegoBrickCol_BZ_ACES_CUSTOM.csv')
 os.environ.setdefault('BZ_LXFML_SCALE', '20.0')
-os.environ.setdefault('BZ_LXFML_STYLE', 'Render')
 
 
 def _clean_input(path):
@@ -50,8 +51,8 @@ class GUI(VFXWindow):
         self.setWindowPalette('maya')
         loadUi(os.path.join(os.path.dirname(__file__), 'layout.ui'), self)
 
-        self.atomPath.setPlaceholderText(os.environ['BZ_LXFML_PRIMITIVES'])
-        self.commonPartsPath.setPlaceholderText(os.environ['BZ_LXFML_COMMONPARTS'])
+        self.atomPath.setPlaceholderText(os.environ['BZ_LXFML_BRICK_PATH'])
+        self.commonPartsPath.setPlaceholderText(os.environ['BZ_LXFML_COMMONPARTS_PATH'])
         self.shdPath.setPlaceholderText(os.environ['BZ_LXFML_SHADER_PATH'])
         self.nsInput.setPlaceholderText(os.environ['BZ_LXFML_SHADER_NS'])
         self.sgInput.setPlaceholderText(os.environ['BZ_LXFML_SHADER_GROUP'])
@@ -63,6 +64,7 @@ class GUI(VFXWindow):
         else:
             self.scaleGrp.setChecked(True)
             self.scaleValue.setValue(scale)
+        self.scaleGrp.setChecked(float(os.environ['BZ_LXFML_SCALE']) != 1)
         self.decalPath.setPlaceholderText(os.environ['BZ_LXFML_DECORATIONS'])
 
         self.menuClose.triggered.connect(self.close)
@@ -73,6 +75,7 @@ class GUI(VFXWindow):
         self.shdOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
         self.paletteOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
         self.decalOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
+        self.commonPartOpen.setIconPath(_getIcon('SP_DirOpenIcon.png'))
         self.shaderSwitchValid.setIconPath(_getIcon('valid.png'))
         self.shaderSwitchInvalid.setIconPath(_getIcon('invalid.png'))
         self.maskSwitchValid.setIconPath(_getIcon('valid.png'))
@@ -97,7 +100,9 @@ class GUI(VFXWindow):
 
         self.stylePresets.clear()
         self.stylePresets.addItems(sorted(STYLE_PRESETS))
-        self.stylePresets.setCurrentText(os.environ['BZ_LXFML_STYLE'])
+        self.stylePresets.setCurrentText(os.environ['BZ_LXFML_BRICK_STYLE'])
+
+        self.updateCommonPartsStyle()
 
     def getXmlPath(self):
         """Get the path to the XML file."""
@@ -200,6 +205,16 @@ class GUI(VFXWindow):
     def chooseCommonPartsFile(self):
         filePath = self._openDirectory('Select Common Parts Path', self.getCommonPartsPath())
         self.commonPartsPath.setText(filePath)
+        self.updateCommonPartsStyle()
+
+    @QtCore.Slot()
+    def updateCommonPartsStyle(self):
+        self.commonPartsStyle.clear()
+        try:
+            self.commonPartsStyle.addItems(os.listdir(self.getCommonPartsPath()))
+        except OSError as e:
+            logger.exception(e)
+        self.commonPartsStyle.setCurrentText(os.environ['BZ_LXFML_COMMONPARTS_STYLE'])
 
     @QtCore.Slot()
     def lsShaderSwitch(self):
@@ -315,6 +330,7 @@ class GUI(VFXWindow):
                 collapseGeo=self.collapseGeo.isChecked(),
                 rename=self.rename.isChecked(),
                 commonPartsPath=self.getCommonPartsPath() if self.replaceCommonParts.isChecked() else None,
+                commonPartsStyle=self.commonPartsStyle.currentText(),
             )
 
     @TemporaryCursor()
