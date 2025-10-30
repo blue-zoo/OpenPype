@@ -169,6 +169,9 @@ def swap_common_part(original_obj, style, path):
     # Delete original and rename new
     cmds.delete(original_obj)
 
+    # Rotate 90 degrees
+    cmds.xform(imported_root, relative=True, objectSpace=True, rotation=(-90, 0, 0))
+
     try:
         final_name = cmds.rename(imported_root, original_short_name)
     except:
