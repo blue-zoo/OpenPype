@@ -56,8 +56,13 @@ class GUI(VFXWindow):
         self.nsInput.setPlaceholderText(os.environ['BZ_LXFML_SHADER_NS'])
         self.sgInput.setPlaceholderText(os.environ['BZ_LXFML_SHADER_GROUP'])
         self.palettePath.setPlaceholderText(os.environ['BZ_LXFML_PALETTE'])
-        self.scaleValue.setValue(float(os.environ['BZ_LXFML_SCALE']))
-        self.scaleGrp.setChecked(float(os.environ['BZ_LXFML_SCALE']) != 1)
+        scale = float(os.environ['BZ_LXFML_SCALE'])
+        if scale == 1:
+            self.scaleGrp.setChecked(False)
+            self.scaleValue.setValue(20)
+        else:
+            self.scaleGrp.setChecked(True)
+            self.scaleValue.setValue(scale)
         self.decalPath.setPlaceholderText(os.environ['BZ_LXFML_DECORATIONS'])
 
         self.menuClose.triggered.connect(self.close)
