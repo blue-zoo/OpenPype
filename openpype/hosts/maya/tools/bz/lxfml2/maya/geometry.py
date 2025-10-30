@@ -7,6 +7,7 @@ from uuid import uuid4, UUID
 import maya.cmds as mc
 import maya.mel as mel
 
+from .common_parts import run_style_update
 from .utils import isBrickALocator
 from .rename import renameSceneObjects
 from ..constants import STYLE_PRESETS
@@ -355,8 +356,8 @@ def addToDisplayLayer(layer, nodes):
     mc.editDisplayLayerMembers(displayLayer, nodes, noRecurse=True)
 
 
-def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True,
-               sockets=True, pivots=True, collapseGeo=True, rename=True, **kwargs):
+def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, sockets=True,
+               pivots=True, collapseGeo=True, rename=True, commonPartsPath=None, **kwargs):
     """Load the brick files into the scene.
 
     Returns:
@@ -506,3 +507,6 @@ def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True,
                     nodesToRename.update(mc.listRelatives(brick, allDescendents=True, type='transform'))
                     break
             renameSceneObjects(nodesToRename)
+
+        if commonPartsPath is not None:
+            run_style_update(brickDirectory.stylePreset, commonPartsPath)

@@ -161,6 +161,31 @@ Some processing is done on the path to determine where the brick ID can be found
         </layout>
        </item>
        <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_8">
+         <item>
+          <widget class="QLabel" name="commonPartsPathLabel">
+           <property name="text">
+            <string>Common Parts Path:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="commonPartsPath">
+           <property name="placeholderText">
+            <string>Y:\LEGO\2013s_LegoCitySeries4\Libraries\brickDatabase\CommonParts</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="commonPartOpen">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
         <layout class="QHBoxLayout" name="createLayout">
          <item>
           <spacer name="horizontalSpacer">
@@ -291,6 +316,29 @@ Some processing is done on the path to determine where the brick ID can be found
           <widget class="QCheckBox" name="rename">
            <property name="text">
             <string>Rename</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_9">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="replaceCommonParts">
+           <property name="text">
+            <string>Replace Common Parts</string>
            </property>
            <property name="checked">
             <bool>true</bool>
