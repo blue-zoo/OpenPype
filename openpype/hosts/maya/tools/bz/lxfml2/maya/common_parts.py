@@ -90,11 +90,16 @@ def import_fbx_get_root(fbx_path):
 
     try:
         # Simple import without namespace
-        cmds.file(fbx_path, i=True, type="FBX", ignoreVersion=True, mergeNamespacesOnClash=False, namespace=":")
+        new_nodes = cmds.file(fbx_path, i=True, type="FBX", ignoreVersion=True, mergeNamespacesOnClash=False, namespace=":", returnNewNodes=True)
 
         # Find new transforms
         transforms_after = set(cmds.ls(type='transform', long=True))
         new_transforms = transforms_after - transforms_before
+
+        # Delete non transform / mesh nodes
+        toDelete = set(cmds.ls(new_nodes)) - set(cmds.ls(new_nodes, type=['transform', 'mesh', 'locator']))
+        if toDelete:
+            cmds.delete(toDelete)
 
         if new_transforms:
             # Return the first new transform (usually the root)

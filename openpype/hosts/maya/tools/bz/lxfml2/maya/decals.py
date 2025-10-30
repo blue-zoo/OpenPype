@@ -102,7 +102,7 @@ def importDecal(filePath, uvSet=None, deleteExistingNodes=True):
         mc.setAttr(place2dNode + '.wrapV', 0)
 
     # Connect to texture file
-    for place2dAttr, fileAttr, in PLACE_2D_TO_FILE_ATTRS.iteritems():
+    for place2dAttr, fileAttr, in PLACE_2D_TO_FILE_ATTRS.items():
         mc.connectAttr(place2dNode + '.' + place2dAttr, fileNode + '.' + fileAttr)
 
     return fileNode
@@ -168,11 +168,15 @@ def importDecals(path, shaderSwitch, maskSwitch):
                     exc.append('No mask switch found for index {}.'.format(i))
                     continue
 
-            try:
-                filePath = decalFiles[decal.split(';')[0] + '_COL']
-            except KeyError:
-                logger.warning('No decal file found for %s', decal.split(';')[0])
+            decalName = decal.split(';')[0]
+            for _decalName, filePath in decalFiles.items():
+                if _decalName.startswith(decalName):
+                    break
             else:
+                logger.warning('No decal file found for %s in %s', decal.split(';')[0], path)
+                filePath = None
+
+            if filePath is not None:
                 # Import the decal texture
                 logger.info('Importing decal: %s', filePath)
                 decalNode = importDecal(filePath, uvSet=decal.split(';')[1].split(':')[-1])
