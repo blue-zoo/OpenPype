@@ -11,8 +11,8 @@ def getSceneBricks():
 
     If there is no LEGO_Bricks group, then it will get any top level transform nodes.
     """
-    nodes = (node.rsplit('.', 1)[0] for node in mc.ls('*.LEGO_importData'))
-    return [node for node in nodes if mc.listRelatives(node, children=True, type='mesh')]
+    nodes = (node.rsplit('.', 1)[0] for node in mc.ls('*.LEGO_colour'))
+    return [node for node in nodes if mc.listRelatives(node, children=True, type='mesh', allDescendents=True)]
 
 
 def scaleObject(obj, scaleFactor, xform=True, absolute=False):
