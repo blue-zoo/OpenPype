@@ -99,4 +99,13 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
+# Load bluehox
+try:
+    from openpype.hosts.maya.tools.bz.bluebox.integrations import maya as bluebox
+    cmds.evalDeferred(bluebox.setup, lowestPriority=True)
+
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+
 print("Finished OpenPype BZ usersetup.")
