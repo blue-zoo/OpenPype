@@ -498,6 +498,10 @@ def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, sockets
             except Exception as e:
                 exc.append('{}: {}'.format(plugin, e))
 
+        # Replace common parts
+        if commonPartsPath is not None and commonPartsStyle is not None:
+            run_style_update(commonPartsStyle, commonPartsPath)
+
         # Rename brick nodes
         if rename:
             nodesToRename = set()
@@ -508,6 +512,3 @@ def setupScene(xmlPath, brickDirectory, groups=True, selectionSets=True, sockets
                     nodesToRename.update(mc.listRelatives(brick, allDescendents=True, type='transform'))
                     break
             renameSceneObjects(nodesToRename)
-
-        if commonPartsPath is not None and commonPartsStyle is not None:
-            run_style_update(commonPartsStyle, commonPartsPath)
