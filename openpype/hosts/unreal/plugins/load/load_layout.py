@@ -784,7 +784,10 @@ class LayoutLoader(plugin.Loader):
         Returns:
             list(str): list of container content
         """
-        is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+        ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        ue_major = int(ue_version[0])
+        ue_minor = int(ue_version[1])
+        is5_5_or_later = ue_major == 5 and ue_minor >= 5  
 
         # Always start by saving everything, so if we get an error or crash
         # during loading we have saved our changes, but also to make sure
@@ -889,7 +892,7 @@ class LayoutLoader(plugin.Loader):
                     sequence_levelSeq.find_tracks_by_exact_type(unreal.MovieSceneSubTrack) + [None]))
 
                 if subscene_track is None:
-                    if is5_5:
+                    if is5_5_or_later:
                         subscene_track = sequence_levelSeq.add_track(unreal.MovieSceneSubTrack)
                     else:
                         subscene_track = sequence_levelSeq.add_master_track(unreal.MovieSceneSubTrack)
@@ -1129,7 +1132,7 @@ class LayoutLoader(plugin.Loader):
                 shot.find_tracks_by_exact_type(unreal.MovieSceneSubTrack) + [None]))
 
             if subscene_track is None:
-                if is5_5:
+                if is5_5_or_later:
                     subscene_track = shot.add_track(unreal.MovieSceneSubTrack)
                 else:
                     subscene_track = shot.add_master_track(unreal.MovieSceneSubTrack)

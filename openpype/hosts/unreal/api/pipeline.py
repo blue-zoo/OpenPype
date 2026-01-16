@@ -552,8 +552,12 @@ def get_subsequences(sequence: unreal.LevelSequence):
 def set_sequence_hierarchy(
     seq_i, seq_j, max_frame_i, min_frame_j, max_frame_j, map_paths
 ):
-    is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
-    if is5_5:
+    ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+    ue_major = int(ue_version[0])
+    ue_minor = int(ue_version[1])
+    is5_5_or_later = ue_major == 5 and ue_minor >= 5  
+
+    if is5_5_or_later:
         tracks = seq_i.get_tracks()
     else:
         # Get existing sequencer tracks or create them if they don't exist
@@ -567,13 +571,13 @@ def set_sequence_hierarchy(
                 unreal.MovieSceneLevelVisibilityTrack.static_class()):
             visibility_track = t
     if not subscene_track:
-        if is5_5:
+        if is5_5_or_later:
             subscene_track = seq_i.add_track(unreal.MovieSceneSubTrack)
         else:
             subscene_track = seq_i.add_master_track(unreal.MovieSceneSubTrack)
 
     if not visibility_track:
-        if is5_5:
+        if is5_5_or_later:
             visibility_track = seq_i.add_track(
                 unreal.MovieSceneLevelVisibilityTrack)
         else:
@@ -690,7 +694,10 @@ def set_sequence_hierarchy(
 
 
 def generate_sequence(h, h_dir):
-    is5_5 = unreal.SystemLibrary.get_engine_version().startswith("5.5")
+    ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+    ue_major = int(ue_version[0])
+    ue_minor = int(ue_version[1])
+    is5_5_or_later = ue_major == 5 and ue_minor >= 5
 
     tools = unreal.AssetToolsHelpers().get_asset_tools()
     sequence = tools.create_asset(
@@ -739,7 +746,7 @@ def generate_sequence(h, h_dir):
     sequence.set_work_range_end(max_frame / fps)
     sequence.set_view_range_start(min_frame / fps)
     sequence.set_view_range_end(max_frame / fps)
-    if is5_5:
+    if is5_5_or_later:
         tracks = sequence.get_tracks()
     else:
         tracks = sequence.get_master_tracks()
@@ -750,7 +757,7 @@ def generate_sequence(h, h_dir):
             track = t
             break
     if not track:
-        if is5_5:
+        if is5_5_or_later:
             track = sequence.add_track(
                 unreal.MovieSceneCameraCutTrack)
         else:

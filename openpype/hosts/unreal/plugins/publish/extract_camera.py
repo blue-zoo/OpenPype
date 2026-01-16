@@ -46,15 +46,27 @@ class ExtractCamera(publish.Extractor):
             if is_level_sequence:
                 sequence = data.get_asset()
                 if UNREAL_VERSION.major == 5 and UNREAL_VERSION.minor >= 1:
-                    params = unreal.SequencerExportFBXParams(
-                        world=world,
-                        root_sequence=sequence,
-                        sequence=sequence,
-                        bindings=sequence.get_bindings(),
-                        master_tracks=sequence.get_master_tracks(),
-                        fbx_file_name=os.path.join(staging_dir, fbx_filename)
-                    )
-                    unreal.SequencerTools.export_level_sequence_fbx(params)
+                    if UNREAL_VERSION.minor >= 5:
+                        params = unreal.SequencerExportFBXParams(
+                            world=world,
+                            root_sequence=sequence,
+                            sequence=sequence,
+                            bindings=sequence.get_bindings(),
+                            master_tracks=sequence.get_tracks(),
+                            fbx_file_name=os.path.join(staging_dir, fbx_filename)
+                        )
+                        unreal.SequencerTools.export_level_sequence_fbx(params)
+                    else:
+                        params = unreal.SequencerExportFBXParams(
+                            world=world,
+                            root_sequence=sequence,
+                            sequence=sequence,
+                            bindings=sequence.get_bindings(),
+                            master_tracks=sequence.get_master_tracks(),
+                            fbx_file_name=os.path.join(staging_dir, fbx_filename)
+                        )
+                        unreal.SequencerTools.export_level_sequence_fbx(params)
+                        
                 elif UNREAL_VERSION.major == 4 and UNREAL_VERSION.minor == 26:
                     unreal.SequencerTools.export_fbx(
                         world,
