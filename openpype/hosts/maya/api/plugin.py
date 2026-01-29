@@ -299,7 +299,6 @@ class MayaCreator(NewCreator, MayaCreatorBase):
 
         with lib.undo_chunk():
             instance_node = cmds.sets(members, name=subset_name)
-            cmds.setAttr('{}.hiddenInOutliner'.format(instance_node), True)
             instance_data["instance_node"] = instance_node
             instance = CreatedInstance(
                 self.family,
@@ -310,6 +309,17 @@ class MayaCreator(NewCreator, MayaCreatorBase):
 
             self.imprint_instance_node(instance_node,
                                        data=instance.data_to_store())
+
+            # Hide sets
+            sets_to_hide = [instance_node]
+            sets_to_hide.extend(cmds.ls(members, type='objectSet'))
+            for set_to_hide in sets_to_hide:
+                print('Hiding {} in outliner'.format(set_to_hide))
+                try:
+                    cmds.setAttr('{}.hiddenInOutliner'.format(set_to_hide), True)
+                except Exception as e:
+                    print(e)
+
             return instance
 
     def collect_instances(self):
