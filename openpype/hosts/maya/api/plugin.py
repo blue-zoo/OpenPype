@@ -299,6 +299,7 @@ class MayaCreator(NewCreator, MayaCreatorBase):
 
         with lib.undo_chunk():
             instance_node = cmds.sets(members, name=subset_name)
+            cmds.setAttr('{}.hiddenInOutliner'.format(instance_node), True)
             instance_data["instance_node"] = instance_node
             instance = CreatedInstance(
                 self.family,
