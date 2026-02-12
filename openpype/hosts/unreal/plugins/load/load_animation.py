@@ -17,6 +17,7 @@ from openpype.pipeline import (
 )
 from openpype.hosts.unreal.api import plugin
 from openpype.hosts.unreal.api import pipeline as unreal_pipeline
+from openpype.hosts.unreal.plugins.load.load_skeletalmesh_fbx import clean_instance_name
 
 from openpype.hosts.unreal.plugins.load.load_layout import\
     replacing_AYONs_level_hierarchy
@@ -35,6 +36,12 @@ class AnimationFBXLoader(plugin.Loader):
         if not instance_data:
             raise RuntimeError('Unexpected error retrieving frame range data. '
                                'Please submit ticket with the full error.')
+
+        # Version check for 5.7+ BP wrapping
+        ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        ue_major = int(ue_version[0])
+        ue_minor = int(ue_version[1])
+        is5_7_or_later = ue_major == 5 and ue_minor >= 7
 
         # Set the Interchange.FeatureFlags.Import.FBX CVar to false, as most of the
         # settings below pertain to the old (before 5.5 i.e. before Interchange)
@@ -56,15 +63,35 @@ class AnimationFBXLoader(plugin.Loader):
             # actor = unreal.EditorLevelLibrary.get_actor_reference(actor_name)
             actors = unreal.EditorLevelLibrary.get_all_level_actors()
             for a in actors:
-                if a.get_class().get_name() != "SkeletalMeshActor":
-                    continue
+                if is5_7_or_later:
+                    # For 5.7+, we're looking for BP actors, not SkeletalMeshActor
+                    # Just match by label, don't filter by class
+                    if a.get_actor_label() == instance_name:
+                        actor = a
+                        break
+                else:
+                    # Original logic for pre-5.7
+                    if a.get_class().get_name() != "SkeletalMeshActor":
+                        continue
 
-                if a.get_actor_label() == instance_name:
-                    actor = a
-                    break
+                    if a.get_actor_label() == instance_name:
+                        actor = a
+                        break
             if not actor:
                 raise Exception(f'Could not find actor "{instance_name}" in Level ')
-            skeleton = actor.skeletal_mesh_component.skeletal_mesh.skeleton
+
+            # Get skeleton from the appropriate component
+            if is5_7_or_later:
+                # Find skeleton from named component
+                skeleton = None
+                for comp in actor.get_components_by_class(unreal.SkeletalMeshComponent):
+                    if "AssetSkeletalMesh" in comp.get_name():
+                        skeleton = comp.skeletal_mesh.skeleton
+                        break
+                if not skeleton:
+                    raise Exception(f'Could not find AssetSkeletalMesh component on actor "{instance_name}"')
+            else:
+                skeleton = actor.skeletal_mesh_component.skeletal_mesh.skeleton
             task.options.set_editor_property('skeleton', skeleton)
 
         if not actor:
@@ -147,10 +174,22 @@ class AnimationFBXLoader(plugin.Loader):
             animation.set_editor_property('root_motion_root_lock', unreal.RootMotionRootLock.REF_POSE)
             animation.set_editor_property('additive_anim_type', unreal.AdditiveAnimationType.AAT_NONE)
             animation.set_editor_property('interpolation', unreal.AnimInterpolationType.LINEAR)
-            actor.skeletal_mesh_component.set_editor_property(
-                'animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
-            actor.skeletal_mesh_component.animation_data.set_editor_property(
-                'anim_to_play', animation)
+
+            # Get the skeletal mesh component - for 5.7+ find by name, for pre-5.7 use direct property
+            skm_component = None
+            if is5_7_or_later:
+                for comp in actor.get_components_by_class(unreal.SkeletalMeshComponent):
+                    if "AssetSkeletalMesh" in comp.get_name():
+                        skm_component = comp
+                        break
+            else:
+                skm_component = actor.skeletal_mesh_component
+
+            if skm_component:
+                skm_component.set_editor_property(
+                    'animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
+                skm_component.animation_data.set_editor_property(
+                    'anim_to_play', animation)
 
         return animation
 
@@ -176,6 +215,12 @@ class AnimationFBXLoader(plugin.Loader):
         Returns:
             list(str): list of container content
         """
+        # Version check for 5.7+ BP wrapping
+        ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        ue_major = int(ue_version[0])
+        ue_minor = int(ue_version[1])
+        is5_7_or_later = ue_major == 5 and ue_minor >= 7
+
         # Always start by saving everything, so if we get an error or crash
         # during loading we have saved our changes, but also to make sure
         # that people push EVERYTHING on perforce and never have to
@@ -240,8 +285,9 @@ class AnimationFBXLoader(plugin.Loader):
         instance_name = context.get('representation',{}).get('context',{}).get('namespace',None)
         if instance_name == None:
             raise AttributeError("Namespace not found in representation publish, unable to determine which actor to apply animation")
-        # Remove colon
+        # Remove colon and clean subset name from instance name
         instance_name = instance_name.replace(":","")
+        instance_name = clean_instance_name(instance_name)
 
         EditorAssetLibrary.make_directory(asset_dir)
         path = self.filepath_from_context(context)
@@ -262,9 +308,19 @@ class AnimationFBXLoader(plugin.Loader):
         for s in sequences:
             sequence = ar.get_asset_by_object_path(s).get_asset()
 
-            possessables = [
-                p for p in sequence.get_possessables()
-                if p.get_display_name() == instance_name]
+            if is5_7_or_later:
+                # Look for component possessable (added by layout loader)
+                # In 5.7+ the animation binds to the AssetSkeletalMesh component
+                possessables = [
+                    p for p in sequence.get_possessables()
+                    if "AssetSkeletalMesh" in str(p.get_display_name())
+                       and str(p.get_parent().get_display_name()) == instance_name
+                ]
+            else:
+                # Original: look for actor possessable
+                possessables = [
+                    p for p in sequence.get_possessables()
+                    if p.get_display_name() == instance_name]
 
             if possessables == []:
                 raise AttributeError('No Actor with Label "{ns}" found in Level, Ensure Actor exists before applying animation'.format(ns=instance_name))

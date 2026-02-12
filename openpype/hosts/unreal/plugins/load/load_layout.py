@@ -31,6 +31,9 @@ from openpype.pipeline.context_tools import get_current_project_asset
 from openpype.settings import get_current_project_settings
 from openpype.hosts.unreal.api import plugin
 
+import re
+from openpype.hosts.unreal.plugins.load.load_skeletalmesh_fbx import get_blueprint_name, clean_instance_name
+
 from openpype.hosts.unreal.api import pipeline
 importlib.reload(pipeline)
 from openpype.hosts.unreal.api.pipeline import (
@@ -187,13 +190,44 @@ class LayoutLoader(plugin.Loader):
     def _process_family(
         self, assets, class_name, transform, basis, sequence, inst_name=None
     ):
+        # Version check for 5.7+ BP wrapping
+        ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        ue_major = int(ue_version[0])
+        ue_minor = int(ue_version[1])
+        is5_7_or_later = ue_major == 5 and ue_minor >= 7
+
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         actors = []
         bindings = []
         skeletal_mesh = None
+
+        # For 5.7+, when handling rig family, look for Blueprint instead of SkeletalMesh
+        target_class_name = class_name
+        expected_bp_name = None
+        if is5_7_or_later and class_name == 'SkeletalMesh':
+            target_class_name = 'Blueprint'
+            # Derive expected BP name from the container's asset metadata
+            # to avoid matching old copied BPs from previous versions
+            for a in assets:
+                obj_check = ar.get_asset_by_object_path(a).get_asset()
+                if obj_check and obj_check.get_class().get_name() == 'AyonAssetContainer':
+                    asset_folder_name = EditorAssetLibrary.get_metadata_tag(
+                        obj_check, 'asset')
+                    namespace = EditorAssetLibrary.get_metadata_tag(
+                        obj_check, 'namespace')
+                    if asset_folder_name and namespace:
+                        version_match = re.search(r'_v(\d+)$', namespace)
+                        if version_match:
+                            expected_bp_name = get_blueprint_name(
+                                asset_folder_name, int(version_match.group(1)))
+                    break
+
         for asset in assets:
             obj = ar.get_asset_by_object_path(asset).get_asset()
-            if obj and obj.get_class().get_name() == class_name:
+            if obj and obj.get_class().get_name() == target_class_name:
+                # 5.7+: Only match the specific wrapper Blueprint (BP_AssetName)
+                if expected_bp_name and obj.get_name() != expected_bp_name:
+                    continue
 
                 t = self._transform_from_basis(transform, basis,swap_axis=True)
                 actor = None
@@ -207,8 +241,8 @@ class LayoutLoader(plugin.Loader):
                         obj, t.translation
                     )
                     actor.set_actor_label(inst_name)
-                elif actor.static_class().get_name() == 'SkeletalMeshActor':
-                    # Ensure the actor is using the skeletal mesh specified
+                elif not is5_7_or_later and actor.static_class().get_name() == 'SkeletalMeshActor':
+                    # Pre-5.7: Ensure the actor is using the skeletal mesh specified
                     # by the provided `asset`, as a rig swap in Maya
                     # only changes the representation and nothing else
                     # so we can't just rely on the name
@@ -228,9 +262,10 @@ class LayoutLoader(plugin.Loader):
 
 
                 if class_name == 'SkeletalMesh':
-                    skm_comp = actor.get_editor_property(
-                        'skeletal_mesh_component')
-                    skm_comp.set_bounds_scale(10.0)
+                    if not is5_7_or_later:
+                        skm_comp = actor.get_editor_property(
+                            'skeletal_mesh_component')
+                        skm_comp.set_bounds_scale(10.0)
                     skeletal_mesh = actor
                 actors.append(actor)
 
@@ -245,91 +280,159 @@ class LayoutLoader(plugin.Loader):
                     if not binding:
                         binding = sequence.add_possessable(actor)
 
+                    # 5.7+: Also add component binding for the SkeletalMeshComponent
+                    # so animations can bind to it
+                    if is5_7_or_later and class_name == 'SkeletalMesh':
+                        for comp in actor.get_components_by_class(unreal.SkeletalMeshComponent):
+                            if "AssetSkeletalMesh" in comp.get_name():
+                                component_binding = sequence.add_possessable(comp)
+                                bindings.append(component_binding)
+                                break
+
                     bindings.append(binding)
 
         if skeletal_mesh:
-            # Check if there are any blueprints in the Asset version folder
-            skeleton_path = unreal.Paths.get_path(asset)
-            blueprints_in_skeleton_path = unreal.AssetRegistryHelpers.\
-                get_blueprint_assets(unreal.ARFilter(
-                    package_paths=[skeleton_path]))
+            if is5_7_or_later:
+                # 5.7+: BP attachment logic needs rework for new architecture
+                # where we use BP_AssetName Blueprint actors instead of SkeletalMeshActor
+                pass
+            else:
+                # Pre-5.7: Keep existing BP attachment and onLayoutInit logic
+                # Check if there are any blueprints in the Asset version folder
+                skeleton_path = unreal.Paths.get_path(asset)
+                blueprints_in_skeleton_path = unreal.AssetRegistryHelpers.\
+                    get_blueprint_assets(unreal.ARFilter(
+                        package_paths=[skeleton_path]))
 
-            # NOTE: worth considering whether we should do anything if there's
-            # not blueprints in the path, as if that's the case, but there's
-            # some attached actors, there's an argument to be made to
-            # unattach and destroy those actors, as they are _likely_ coming
-            # from blueprints that have been moved outside of the correct path,
-            # but there is a chance that those are legitimate actors that
-            # have been attached to the skeletal mesh.
-            #
-            # If there are blueprints we want to attach them to the skeletal mesh
-            for bp_asset_data in blueprints_in_skeleton_path:
-                # Check if a blueprint of this type is already attached as
-                # rebuilding the layout doesn't remove existing assets and
-                # readd them, but it uses the existing instances
-                bp_asset_data_split_path = str(bp_asset_data.package_name).split('/')
-                found_actor = None
-                for child in skeletal_mesh.get_attached_actors():
-                    child_path = child.get_class().get_class_path_name().package_name
-                    child_split_path = str(child_path).split('/')
+                # NOTE: worth considering whether we should do anything if there's
+                # not blueprints in the path, as if that's the case, but there's
+                # some attached actors, there's an argument to be made to
+                # unattach and destroy those actors, as they are _likely_ coming
+                # from blueprints that have been moved outside of the correct path,
+                # but there is a chance that those are legitimate actors that
+                # have been attached to the skeletal mesh.
+                #
+                # If there are blueprints we want to attach them to the skeletal mesh
+                for bp_asset_data in blueprints_in_skeleton_path:
+                    # Check if a blueprint of this type is already attached as
+                    # rebuilding the layout doesn't remove existing assets and
+                    # readd them, but it uses the existing instances
+                    bp_asset_data_split_path = str(bp_asset_data.package_name).split('/')
+                    found_actor = None
+                    for child in skeletal_mesh.get_attached_actors():
+                        child_path = child.get_class().get_class_path_name().package_name
+                        child_split_path = str(child_path).split('/')
 
-                    if len(child_split_path) != len(bp_asset_data_split_path):
-                        continue
+                        if len(child_split_path) != len(bp_asset_data_split_path):
+                            continue
 
-                    # Check if this is the same blueprint, but from different
-                    # versions of the asset, where only the second to last
-                    # token in the path will be different
-                    differences = [(a != b) for a,b in zip(bp_asset_data_split_path,
-                                                           child_split_path)]
-                    if sum(differences) == 1 and differences[-2]:
-                        # Delete the existing blueprint, as we should replace it with
-                        # the one from the new version of the asset
-                        if sequence:
-                            binding = sequence.find_binding_by_name(
-                                child.get_actor_label())
-                            if binding.is_valid():
-                                binding.remove()
-
-                        self.log.warning(
-                            f'{child.get_actor_label()} is from an older version.'
-                             ' of the asset, so it is being deleted to be replaced'
-                             ' with its new version.')
-
-                        child.detach_from_actor()
-                        child.destroy_actor()
-
-                        continue
-
-                    # Otherwise let's just check if this is the same blueprint, in
-                    # which case we have found a match (NOTE: this does not support
-                    # multiples of the same BP being attached, but that is not to spec)
-                    if child_path == bp_asset_data.package_name:
-                        found_actor = child
-
-                if found_actor is not None:
-                    onLayoutInit_ran = False
-                    try:
-                        found_actor.call_method('onLayoutInit')
-                        onLayoutInit_ran = True
-                    except Exception as e:
-                        if 'Failed to find function \'onLayoutInit\'' in str(e):
-                            # If an attached bp doesn't have the `onLayoutInit`
-                            # method defined, it means it has been removed
-                            # after the bp has been attached and since it is
-                            # now unclear where that bp should be attached,
-                            # we remove it from the level
+                        # Check if this is the same blueprint, but from different
+                        # versions of the asset, where only the second to last
+                        # token in the path will be different
+                        differences = [(a != b) for a,b in zip(bp_asset_data_split_path,
+                                                               child_split_path)]
+                        if sum(differences) == 1 and differences[-2]:
+                            # Delete the existing blueprint, as we should replace it with
+                            # the one from the new version of the asset
                             if sequence:
                                 binding = sequence.find_binding_by_name(
-                                    found_actor.get_actor_label())
+                                    child.get_actor_label())
                                 if binding.is_valid():
                                     binding.remove()
 
                             self.log.warning(
-                                f'{found_actor.get_actor_label()} no longer implements '
-                                 'the `onLayoutInit` method, so it is removed.')
+                                f'{child.get_actor_label()} is from an older version.'
+                                 ' of the asset, so it is being deleted to be replaced'
+                                 ' with its new version.')
 
-                            found_actor.detach_from_actor()
-                            found_actor.destroy_actor()
+                            child.detach_from_actor()
+                            child.destroy_actor()
+
+                            continue
+
+                        # Otherwise let's just check if this is the same blueprint, in
+                        # which case we have found a match (NOTE: this does not support
+                        # multiples of the same BP being attached, but that is not to spec)
+                        if child_path == bp_asset_data.package_name:
+                            found_actor = child
+
+                    if found_actor is not None:
+                        onLayoutInit_ran = False
+                        try:
+                            found_actor.call_method('onLayoutInit')
+                            onLayoutInit_ran = True
+                        except Exception as e:
+                            if 'Failed to find function \'onLayoutInit\'' in str(e):
+                                # If an attached bp doesn't have the `onLayoutInit`
+                                # method defined, it means it has been removed
+                                # after the bp has been attached and since it is
+                                # now unclear where that bp should be attached,
+                                # we remove it from the level
+                                if sequence:
+                                    binding = sequence.find_binding_by_name(
+                                        found_actor.get_actor_label())
+                                    if binding.is_valid():
+                                        binding.remove()
+
+                                self.log.warning(
+                                    f'{found_actor.get_actor_label()} no longer implements '
+                                     'the `onLayoutInit` method, so it is removed.')
+
+                                found_actor.detach_from_actor()
+                                found_actor.destroy_actor()
+                                continue
+                            else:
+                                raise e
+
+                        if onLayoutInit_ran:
+                            # onLayoutInit uses snap to target, but since the sockets
+                            # coming from Maya are flipped in X, let's solve that by
+                            # flipping here.
+                            # NOTE: it would be way better to do this in the rigs,
+                            #       but there's a lot of published ones already, so
+                            #       we solve it on loading
+                            child.add_actor_local_transform(
+                                unreal.Transform(scale=[-1,1,1]),
+                                False, False)
+                            unreal.log_warning('layout loading: flipping BP -1 in X after '
+                                               '`onLayoutInit` to account for socket '
+                                               'transform on ' + str(child))
+
+                        # Then ensure it's added to the sequence
+                        if sequence:
+                            bindings.append(sequence.add_possessable(child))
+
+                        actors.append(child)
+
+                        # Carry on without creating a new blueprint instance
+                        continue
+
+                    # Create actor of the specified blueprint type
+                    skeleton_bp_actor = EditorLevelLibrary.spawn_actor_from_object(
+                        bp_asset_data.get_asset(), unreal.Vector())
+
+                    # Attach it to our skeletal mesh, where the socket and the
+                    # rules don't matter, as we then call the `onLayoutInit`
+                    # method of the blueprint which we expect to handle the
+                    # attachment properly
+                    skeleton_bp_actor.attach_to_actor(skeletal_mesh,
+                        socket_name='None',
+                        location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                        rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
+                        scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
+
+                    onLayoutInit_ran = False
+                    try:
+                        skeleton_bp_actor.call_method('onLayoutInit')
+                        onLayoutInit_ran = True
+                    except Exception as e:
+                        if 'Failed to find function \'onLayoutInit\'' in str(e):
+                            bp_class_path = bp_asset_data.package_name
+                            self.log.warning(f'Blueprint {bp_class_path} does not '
+                                              'implement the `onLayoutInit` '
+                                              'function, so it is not being attached.')
+                            skeleton_bp_actor.detach_from_actor()
+                            skeleton_bp_actor.destroy_actor()
                             continue
                         else:
                             raise e
@@ -341,72 +444,19 @@ class LayoutLoader(plugin.Loader):
                         # NOTE: it would be way better to do this in the rigs,
                         #       but there's a lot of published ones already, so
                         #       we solve it on loading
-                        child.add_actor_local_transform(
+                        skeleton_bp_actor.add_actor_local_transform(
                             unreal.Transform(scale=[-1,1,1]),
                             False, False)
                         unreal.log_warning('layout loading: flipping BP -1 in X after '
-                                           '`onLayoutInit` to account for socket '
-                                           'transform on ' + str(child))
+                                            '`onLayoutInit` to account for socket '
+                                            'transform on ' + str(skeleton_bp_actor))
 
-                    # Then ensure it's added to the sequence
+                    # Add blueprint to sequence and store it in actors and bindings,
+                    # even though they are only needed for importing animation
+                    # which this blueprint will never have
+                    actors.append(skeleton_bp_actor)
                     if sequence:
-                        bindings.append(sequence.add_possessable(child))
-
-                    actors.append(child)
-
-                    # Carry on without creating a new blueprint instance
-                    continue
-
-                # Create actor of the specified blueprint type
-                skeleton_bp_actor = EditorLevelLibrary.spawn_actor_from_object(
-                    bp_asset_data.get_asset(), unreal.Vector())
-
-                # Attach it to our skeletal mesh, where the socket and the
-                # rules don't matter, as we then call the `onLayoutInit`
-                # method of the blueprint which we expect to handle the
-                # attachment properly
-                skeleton_bp_actor.attach_to_actor(skeletal_mesh,
-                    socket_name='None',
-                    location_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
-                    rotation_rule=unreal.AttachmentRule.SNAP_TO_TARGET,
-                    scale_rule=unreal.AttachmentRule.SNAP_TO_TARGET)
-
-                onLayoutInit_ran = False
-                try:
-                    skeleton_bp_actor.call_method('onLayoutInit')
-                    onLayoutInit_ran = True
-                except Exception as e:
-                    if 'Failed to find function \'onLayoutInit\'' in str(e):
-                        bp_class_path = bp_asset_data.package_name
-                        self.log.warning(f'Blueprint {bp_class_path} does not '
-                                          'implement the `onLayoutInit` '
-                                          'function, so it is not being attached.')
-                        skeleton_bp_actor.detach_from_actor()
-                        skeleton_bp_actor.destroy_actor()
-                        continue
-                    else:
-                        raise e
-
-                if onLayoutInit_ran:
-                    # onLayoutInit uses snap to target, but since the sockets
-                    # coming from Maya are flipped in X, let's solve that by
-                    # flipping here.
-                    # NOTE: it would be way better to do this in the rigs,
-                    #       but there's a lot of published ones already, so
-                    #       we solve it on loading
-                    skeleton_bp_actor.add_actor_local_transform(
-                        unreal.Transform(scale=[-1,1,1]),
-                        False, False)
-                    unreal.log_warning('layout loading: flipping BP -1 in X after '
-                                        '`onLayoutInit` to account for socket '
-                                        'transform on ' + str(skeleton_bp_actor))
-
-                # Add blueprint to sequence and store it in actors and bindings,
-                # even though they are only needed for importing animation
-                # which this blueprint will never have
-                actors.append(skeleton_bp_actor)
-                if sequence:
-                    bindings.append(sequence.add_possessable(skeleton_bp_actor))
+                        bindings.append(sequence.add_possessable(skeleton_bp_actor))
 
         return actors, bindings
 
@@ -668,7 +718,7 @@ class LayoutLoader(plugin.Loader):
                 for instance in instances:
                     transform = instance.get('transform_matrix')
                     basis = instance.get('basis')
-                    inst = instance.get('instance_name')
+                    inst = clean_instance_name(instance.get('instance_name'))
 
                     actors = []
                     if family == 'model':
