@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Load Skeletal Meshes form FBX."""
 import os
+import re
 
 from openpype.pipeline import (
     get_representation_path,
@@ -9,6 +10,97 @@ from openpype.pipeline import (
 from openpype.hosts.unreal.api import plugin
 from openpype.hosts.unreal.api import pipeline as unreal_pipeline
 import unreal  # noqa
+
+BOILERPLATE_BP_PATH = "/Game/Utilities/UtilityBlueprints/BP_BZAsset_BoilerPlate"
+
+
+def get_blueprint_name(asset_name, version):
+    """Add BP_ prefix and version suffix to asset name."""
+    return f"BP_{asset_name}_v{version:03d}"
+
+
+def clean_instance_name(instance_name):
+    """Strip subset name and trailing underscore from instance name.
+
+    Transforms 'PRP_ArcticPole_rigMain_01_' to 'PRP_ArcticPole_01'.
+    Subset names are camelCase (start with lowercase letter).
+    """
+    return re.sub(r'_([a-z][a-zA-Z0-9]*)_(\d+)_?$', r'_\2', instance_name)
+
+
+def set_skeletal_mesh_on_blueprint(bp_asset, skeletal_mesh):
+    """Set the skeletal mesh on a Blueprint's inherited AssetSkeletalMesh component.
+
+    Uses SubobjectDataSubsystem to find the inherited SkeletalMeshComponent,
+    then SubobjectDataBlueprintFunctionLibrary.get_object_for_blueprint() to
+    get the child-specific override (not the parent's shared template).
+    """
+    bp_name = bp_asset.get_name()
+    subsystem = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+    if not subsystem:
+        print(f"[BP Wrapper] ERROR: Could not get SubobjectDataSubsystem")
+        return False
+
+    lib = unreal.SubobjectDataBlueprintFunctionLibrary
+    handles = subsystem.k2_gather_subobject_data_for_blueprint(context=bp_asset)
+
+    # Find the AssetSkeletalMesh SubobjectData
+    target_data = None
+    for handle in handles:
+        data = subsystem.k2_find_subobject_data_from_handle(handle)
+        if not data:
+            continue
+        export = data.export_text()
+        if 'SkeletalMeshComponent' in export and 'AssetSkeletalMesh' in export:
+            target_data = data
+            break
+
+    if not target_data:
+        print(f"[BP Wrapper] ERROR: No AssetSkeletalMesh component found on {bp_name}")
+        return False
+
+    # get_object_for_blueprint returns the child BP's override component,
+    # not the parent's shared template
+    child_comp = lib.get_object_for_blueprint(target_data, bp_asset)
+    if not child_comp:
+        print(f"[BP Wrapper] ERROR: get_object_for_blueprint returned None for {bp_name}")
+        return False
+
+    child_comp.set_editor_property('skeletal_mesh_asset', skeletal_mesh)
+    bp_asset.modify()
+    print(f"[BP Wrapper] Set skeletal mesh on {bp_name}")
+    return True
+
+
+def validate_blueprint_has_component(bp_asset):
+    """
+    Check if a Blueprint has the AssetSkeletalMesh component.
+
+    Args:
+        bp_asset: The Blueprint asset to validate
+
+    Returns:
+        bool: True if the component exists, False otherwise
+    """
+    try:
+        subsystem = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+        if not subsystem:
+            return False
+
+        handles = subsystem.k2_gather_subobject_data_for_blueprint(context=bp_asset)
+
+        for handle in handles:
+            data = subsystem.k2_find_subobject_data_from_handle(handle)
+            if not data:
+                continue
+
+            export = data.export_text()
+            if 'SkeletalMeshComponent' in export and 'AssetSkeletalMesh' in export:
+                return True
+
+        return False
+    except:
+        return False
 
 
 class SkeletalMeshFBXLoader(plugin.Loader):
@@ -56,6 +148,11 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         version = context.get('version').get('name')
         tools = unreal.AssetToolsHelpers().get_asset_tools()
 
+        # Version check for 5.7+ BP wrapping
+        ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        ue_major = int(ue_version[0])
+        ue_minor = int(ue_version[1])
+        is5_7_or_later = ue_major == 5 and ue_minor >= 7
 
         import pprint
 
@@ -166,7 +263,7 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                 newly_imported_SKM.set_editor_property("nanite_settings", nanite_settings)
 
                 # Save the asset directly, we are directly after the asset
-                # I am considering not doing this save since we're not 
+                # I am considering not doing this save since we're not
                 # directly saving the skeletal mesh either, inconsistent
                 unreal.EditorAssetLibrary.save_loaded_asset(newly_imported_SKM)
 
@@ -196,15 +293,63 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                     latest_version_folder = package_parent
 
             if latest_version_folder:
-                blueprints_to_copy = unreal.AssetRegistryHelpers.\
-                    get_blueprint_assets(unreal.ARFilter(
-                        package_paths=[latest_version_folder]))
+                if is5_7_or_later:
+                    # 5.7+: Find previous version's BP and copy with new version suffix
+                    prev_version_match = re.search(r'_v(\d+)$', latest_version_folder)
+                    if prev_version_match:
+                        prev_version = int(prev_version_match.group(1))
+                        prev_bp_name = get_blueprint_name(asset, prev_version)
+                        new_bp_name = get_blueprint_name(asset, version)
+                        prev_bp_path = f"{latest_version_folder}/{prev_bp_name}"
+                        if unreal.EditorAssetLibrary.does_asset_exist(prev_bp_path):
+                            prev_bp = unreal.EditorAssetLibrary.load_asset(prev_bp_path)
+                            if prev_bp and validate_blueprint_has_component(prev_bp):
+                                unreal.EditorAssetLibrary.duplicate_asset(
+                                    prev_bp_path,
+                                    f"{asset_dir}/{new_bp_name}")
+                else:
+                    # Pre-5.7: Copy all BPs from previous version
+                    blueprints_to_copy = unreal.AssetRegistryHelpers.\
+                        get_blueprint_assets(unreal.ARFilter(
+                            package_paths=[latest_version_folder]))
 
-                for bp_asset_data in blueprints_to_copy:
-                    bp_name = unreal.Paths.get_clean_filename(bp_asset_data.package_name)
+                    for bp_asset_data in blueprints_to_copy:
+                        bp_name_to_copy = unreal.Paths.get_clean_filename(bp_asset_data.package_name)
+                        unreal.EditorAssetLibrary.duplicate_asset(
+                            str(bp_asset_data.package_name),
+                            unreal.Paths.combine([asset_dir, bp_name_to_copy]))
+
+            # UE 5.7+: Create or update Blueprint wrapper for the skeletal mesh
+            if is5_7_or_later and newly_imported_SKM:
+                bp_name = get_blueprint_name(asset, version)
+                bp_path = f"{asset_dir}/{bp_name}"
+
+                # Check if BP exists and is valid
+                bp_exists = unreal.EditorAssetLibrary.does_asset_exist(bp_path)
+                bp_needs_recreation = False
+
+                if bp_exists:
+                    # Validate the existing BP has the AssetSkeletalMesh component
+                    bp_asset = unreal.EditorAssetLibrary.load_asset(bp_path)
+                    if not bp_asset or not validate_blueprint_has_component(bp_asset):
+                        print(f"[BP Wrapper] Existing BP at {bp_path} is invalid. Recreating from boilerplate.")
+                        bp_needs_recreation = True
+
+                if not bp_exists or bp_needs_recreation:
+                    if bp_needs_recreation:
+                        unreal.EditorAssetLibrary.delete_asset(bp_path)
+                    # Copy from boilerplate
+                    print(f"[BP Wrapper] Creating BP from boilerplate: {bp_path}")
                     unreal.EditorAssetLibrary.duplicate_asset(
-                        str(bp_asset_data.package_name),
-                        unreal.Paths.combine([asset_dir, bp_name]))
+                        BOILERPLATE_BP_PATH,
+                        bp_path
+                    )
+
+                # Load BP and set the skeletal mesh
+                bp_asset = unreal.EditorAssetLibrary.load_asset(bp_path)
+                if bp_asset:
+                    set_skeletal_mesh_on_blueprint(bp_asset, newly_imported_SKM)
+                    unreal.EditorAssetLibrary.save_asset(bp_path)
 
             # Create Asset Container
             if not unreal.EditorAssetLibrary.does_asset_exist(
@@ -250,6 +395,12 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         return asset_content
 
     def update(self, container, representation):
+        # Version check for 5.7+ BP wrapping
+        ue_version = unreal.SystemLibrary.get_engine_version().split('.')
+        ue_major = int(ue_version[0])
+        ue_minor = int(ue_version[1])
+        is5_7_or_later = ue_major == 5 and ue_minor >= 7
+
         # Check if the target version had nanite enabled before we update
         existing_has_nanite_enabled = True
         last_version_skm = unreal.load_asset(container["namespace"] + '/' + container["asset_name"])
@@ -304,7 +455,7 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])  # noqa: E501
 
         container_path = "{}/{}".format(container["namespace"],
-                                        container["objectName"])        
+                                        container["objectName"])
 
         # Load the asset we just imported
         newly_imported_SKM = unreal.load_asset(container["namespace"] + '/' + container["asset_name"])
@@ -317,9 +468,24 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             newly_imported_SKM.set_editor_property("nanite_settings", nanite_settings)
 
             # Save the asset directly, we are directly after the asset
-            # I am considering not doing this save since we're not 
+            # I am considering not doing this save since we're not
             # directly saving the skeletal mesh either, inconsistent
             unreal.EditorAssetLibrary.save_loaded_asset(newly_imported_SKM)
+
+            # UE 5.7+: Update Blueprint wrapper's SkeletalMeshComponent
+            if is5_7_or_later:
+                asset_name = container.get("asset", "")
+                version_match = re.search(r'_v(\d+)$', destination_path)
+                if version_match:
+                    ver = int(version_match.group(1))
+                    bp_name = get_blueprint_name(asset_name, ver)
+                    bp_path = f"{destination_path}/{bp_name}"
+
+                    if unreal.EditorAssetLibrary.does_asset_exist(bp_path):
+                        bp_asset = unreal.EditorAssetLibrary.load_asset(bp_path)
+                        if bp_asset:
+                            set_skeletal_mesh_on_blueprint(bp_asset, newly_imported_SKM)
+                            unreal.EditorAssetLibrary.save_asset(bp_path)
 
         # update metadata
         unreal_pipeline.imprint(
