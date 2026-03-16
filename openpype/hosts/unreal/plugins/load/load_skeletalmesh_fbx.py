@@ -349,6 +349,10 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                 bp_asset = unreal.EditorAssetLibrary.load_asset(bp_path)
                 if bp_asset:
                     set_skeletal_mesh_on_blueprint(bp_asset, newly_imported_SKM)
+                    # Force this off — the boilerplate has it disabled but it
+                    # sometimes gets reset during duplication/import
+                    bp_asset.set_editor_property(
+                        'run_construction_script_in_sequencer', False)
                     unreal.EditorAssetLibrary.save_asset(bp_path)
 
             # Create Asset Container
@@ -485,6 +489,8 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                         bp_asset = unreal.EditorAssetLibrary.load_asset(bp_path)
                         if bp_asset:
                             set_skeletal_mesh_on_blueprint(bp_asset, newly_imported_SKM)
+                            bp_asset.set_editor_property(
+                                'run_construction_script_in_sequencer', False)
                             unreal.EditorAssetLibrary.save_asset(bp_path)
 
         # update metadata
