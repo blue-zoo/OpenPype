@@ -11,6 +11,18 @@ from openpype.hosts.maya.api.lib import (
     iter_visible_nodes_in_range
 )
 
+def getRefTopNode(node):
+    allReferenceNodes = cmds.referenceQuery(node, nodes=True)
+    allNodesWithDuplicates = cmds.ls( allReferenceNodes,long=True,type="transform" )
+    allNodes = []
+    [allNodes.append(n)  for n in allNodesWithDuplicates if not n in allNodes]
+
+    countDict = {}
+    [ countDict.update( { x.count("|") :[]} ) for x in allNodes]
+    [ countDict[x.count("|")].append(x)  for x in allNodes]
+    if countDict:
+        return countDict[min(countDict.keys())]
+
 
 class ExtractAlembic(publish.Extractor):
     """Produce an alembic of just point positions and normals.
@@ -206,6 +218,28 @@ class ExtractAnimation(ExtractAlembic):
             #instance.data['animationOnly']=True
 
             joints_to_export = cmds.sets(out_sets[0], query=True)
+
+            # Add the tranformation of the root joint to export, to the top node of the
+            # reference, this will mean the top node of the fbx will have the same tranformation
+            # as the joint.
+            allReferenceNodes = cmds.referenceQuery(joints_to_export, nodes=True)
+
+            characterNodeGrps = [x for x in allReferenceNodes if x.endswith('C_characterNode_GRP') ]
+            characterNodeCtls = [x for x in allReferenceNodes if x.endswith('C_characterNode_CTL') ]
+
+
+            if characterNodeGrps and characterNodeCtls:
+                characterNodeGrp = characterNodeGrps[0]
+                characterNodeCtl = characterNodeCtls[0]
+
+                offset = cmds.xform(characterNodeCtl, q=1,t=1,ws=1,a=1)
+                cmds.xform(characterNodeGrp, t=offset,ws=1)
+
+                cmds.xform(characterNodeCtl, t=[0,0,0])
+                self.log.info('Offset transform Node "{x}" '.format(x=characterNodeCtl))
+                import pdb
+                pdb.set_trace()
+
             joints_to_export = cmds.listRelatives(joints_to_export,ad=True,type="joint")
             fbx_exporter = fbx.FBXExtractor(log=self.log)
             instance.data["upAxis"]="z"
@@ -242,6 +276,9 @@ class ExtractAnimation(ExtractAlembic):
                 end = instance.context.data.get("handleEnd")
             else:
                 end = instance.data.get("frameEnd") + 100
+
+            import pdb
+            #pdb.set_trace()
 
             cmds.select(joints_to_export)
             cmds.bakeResults(preserveOutsideKeys=True, time=(start,end), simulation=True)
