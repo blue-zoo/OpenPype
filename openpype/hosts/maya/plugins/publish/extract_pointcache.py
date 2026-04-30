@@ -237,8 +237,8 @@ class ExtractAnimation(ExtractAlembic):
 
                 cmds.xform(characterNodeCtl, t=[0,0,0])
                 self.log.info('Offset transform Node "{x}" '.format(x=characterNodeCtl))
-                import pdb
-                pdb.set_trace()
+            else:
+                self.log.info('Offset transform Node NOT done, could not find groups ')
 
             joints_to_export = cmds.listRelatives(joints_to_export,ad=True,type="joint")
             fbx_exporter = fbx.FBXExtractor(log=self.log)

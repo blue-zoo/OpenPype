@@ -170,7 +170,7 @@ class AnimationFBXLoader(plugin.Loader):
 
         if animation:
             animation.set_editor_property('enable_root_motion', True)
-            animation.set_editor_property('force_root_lock', True)
+            animation.set_editor_property('force_root_lock', False)
             animation.set_editor_property('root_motion_root_lock', unreal.RootMotionRootLock.REF_POSE)
             animation.set_editor_property('additive_anim_type', unreal.AdditiveAnimationType.AAT_NONE)
             animation.set_editor_property('interpolation', unreal.AnimInterpolationType.LINEAR)
