@@ -259,7 +259,7 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                 # We can't just set the editor property, we have to access
                 # via Nanite Settings object then set it back, weird
                 nanite_settings = newly_imported_SKM.get_editor_property("nanite_settings")
-                nanite_settings.enabled = True
+                nanite_settings.enabled = False
                 newly_imported_SKM.set_editor_property("nanite_settings", nanite_settings)
 
                 # Save the asset directly, we are directly after the asset
@@ -406,7 +406,7 @@ class SkeletalMeshFBXLoader(plugin.Loader):
         is5_7_or_later = ue_major == 5 and ue_minor >= 7
 
         # Check if the target version had nanite enabled before we update
-        existing_has_nanite_enabled = True
+        existing_has_nanite_enabled = False
         last_version_skm = unreal.load_asset(container["namespace"] + '/' + container["asset_name"])
 
         if last_version_skm:
