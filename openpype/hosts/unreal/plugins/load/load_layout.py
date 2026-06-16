@@ -233,6 +233,28 @@ class LayoutLoader(plugin.Loader):
                 actor = None
                 for _a in EditorLevelLibrary.get_all_level_actors():
                     if _a.get_actor_label() == inst_name:
+                        # 5.7+ rig: the actor is a wrapper-Blueprint instance.
+                        # If its generated class no longer matches the latest
+                        # blueprint, it is an older version -> delete it so we
+                        # respawn from the latest below (actors are always
+                        # zero-transformed). The sequencer binding is label
+                        # based, so we drop the stale binding first, mirroring
+                        # the pre-5.7 replace path.
+                        if (is5_7_or_later and class_name == 'SkeletalMesh'
+                                and expected_bp_name
+                                and _a.get_class().get_name()
+                                    != expected_bp_name + '_C'):
+                            if sequence:
+                                binding = sequence.find_binding_by_name(
+                                    _a.get_actor_label())
+                                if binding.is_valid():
+                                    binding.remove()
+                            self.log.warning(
+                                f'{_a.get_actor_label()} is an older blueprint '
+                                f'version ({_a.get_class().get_name()}); '
+                                f'replacing with {expected_bp_name}_C.')
+                            _a.destroy_actor()
+                            break  # actor stays None -> fresh spawn below
                         actor = _a
                         actor.set_actor_location(t.translation,False,False)
                         break
