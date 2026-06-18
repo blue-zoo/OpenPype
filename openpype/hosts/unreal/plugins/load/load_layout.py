@@ -231,30 +231,39 @@ class LayoutLoader(plugin.Loader):
 
                 t = self._transform_from_basis(transform, basis,swap_axis=True)
                 actor = None
+                replaced_folder = None  # outliner folder of a replaced actor
+                old_actor_to_replace = None  # stale-version actor to retarget off
                 for _a in EditorLevelLibrary.get_all_level_actors():
                     if _a.get_actor_label() == inst_name:
-                        # 5.7+ rig: the actor is a wrapper-Blueprint instance.
-                        # If its generated class no longer matches the latest
-                        # blueprint, it is an older version -> delete it so we
-                        # respawn from the latest below (actors are always
-                        # zero-transformed). The sequencer binding is label
-                        # based, so we drop the stale binding first, mirroring
-                        # the pre-5.7 replace path.
-                        if (is5_7_or_later and class_name == 'SkeletalMesh'
-                                and expected_bp_name
-                                and _a.get_class().get_name()
-                                    != expected_bp_name + '_C'):
-                            if sequence:
-                                binding = sequence.find_binding_by_name(
-                                    _a.get_actor_label())
-                                if binding.is_valid():
-                                    binding.remove()
-                            self.log.warning(
-                                f'{_a.get_actor_label()} is an older blueprint '
-                                f'version ({_a.get_class().get_name()}); '
-                                f'replacing with {expected_bp_name}_C.')
-                            _a.destroy_actor()
-                            break  # actor stays None -> fresh spawn below
+                        # 5.7+ rig: the in-level actor is a wrapper-Blueprint
+                        # instance (skeletal mesh embedded). The version is NOT
+                        # in the BP name (shared across versions) nor the actor
+                        # label (the layout instance name, e.g. CHR_Name_02) --
+                        # it lives in the asset *folder*. So compare the actor's
+                        # blueprint package path against the latest blueprint's
+                        # package path; if they sit in different version folders
+                        # the actor is stale. Rather than rebuild its bindings, we
+                        # spawn the new version and RETARGET the existing bindings
+                        # onto it (see the sequence block below), mirroring the
+                        # editor's "Replace Selected Actors with..." -- which
+                        # remaps binding GUIDs and so keeps their tracks/animation.
+                        if is5_7_or_later and target_class_name == 'Blueprint':
+                            actor_bp_pkg = str(
+                                _a.get_class().get_class_path_name().package_name)
+                            latest_bp_pkg = obj.get_path_name().split('.')[0]
+                            if actor_bp_pkg != latest_bp_pkg:
+                                self.log.warning(
+                                    f'{_a.get_actor_label()} is from an older '
+                                    f'asset version ({actor_bp_pkg}); replacing '
+                                    f'with {latest_bp_pkg}.')
+                                # Preserve the outliner folder (e.g. CHR) the old
+                                # actor lived in, as lighting/render layers rely on
+                                # it; the fresh spawn defaults to the level root.
+                                replaced_folder = _a.get_folder_path()
+                                # Defer destroy until the new actor is spawned and
+                                # the bindings have been retargeted onto it.
+                                old_actor_to_replace = _a
+                                break  # actor stays None -> fresh spawn below
                         actor = _a
                         actor.set_actor_location(t.translation,False,False)
                         break
@@ -263,6 +272,10 @@ class LayoutLoader(plugin.Loader):
                         obj, t.translation
                     )
                     actor.set_actor_label(inst_name)
+                    # Re-home the respawned actor under the same outliner folder
+                    # the replaced actor was in, so render-layer grouping survives.
+                    if replaced_folder is not None:
+                        actor.set_folder_path(replaced_folder)
                 elif not is5_7_or_later and actor.static_class().get_name() == 'SkeletalMeshActor':
                     # Pre-5.7: Ensure the actor is using the skeletal mesh specified
                     # by the provided `asset`, as a rig swap in Maya
@@ -292,26 +305,76 @@ class LayoutLoader(plugin.Loader):
                 actors.append(actor)
 
                 if sequence:
-                    binding = None
-                    for p in sequence.get_possessables():
-                        if p.get_name() == actor.get_name():
-                            # NOTE: this does nothing, as the binding name is never that of the actor?
-                            binding = p
-                            break
-
-                    if not binding:
-                        binding = sequence.add_possessable(actor)
-
-                    # 5.7+: Also add component binding for the SkeletalMeshComponent
-                    # so animations can bind to it
-                    if is5_7_or_later and class_name == 'SkeletalMesh':
-                        for comp in actor.get_components_by_class(unreal.SkeletalMeshComponent):
-                            if "AssetSkeletalMesh" in comp.get_name():
-                                component_binding = sequence.add_possessable(comp)
-                                bindings.append(component_binding)
+                    if old_actor_to_replace is not None:
+                        # Replace-Actor semantics: re-point the EXISTING bindings
+                        # (and the tracks/animation already on them) at the freshly
+                        # spawned actor instead of rebuilding them, so initial load
+                        # stays the single owner of track setup. replace_binding_
+                        # with_actors swaps the bound object on the actor binding's
+                        # GUID (its tracks ride along); rebind_component re-resolves
+                        # the child SkeletalMeshComponent binding by name (the base
+                        # BP_BZ_Asset guarantees that component exists).
+                        #
+                        # LevelSequenceEditorSubsystem acts on the Sequencer's
+                        # ACTIVE sequence, so the shot must be open or the
+                        # replace/rebind silently no-op -- the binding reference is
+                        # never written and the track stays red even after a save.
+                        # Open it first, retarget, then refresh.
+                        LevelSequenceLib.open_level_sequence(sequence)
+                        les = unreal.get_editor_subsystem(
+                            unreal.LevelSequenceEditorSubsystem)
+                        binding = sequence.find_binding_by_name(
+                            actor.get_actor_label())
+                        if binding.is_valid():
+                            les.replace_binding_with_actors([actor], binding)
+                            bindings.append(binding)
+                            if is5_7_or_later and class_name == 'SkeletalMesh':
+                                for comp in actor.get_components_by_class(
+                                        unreal.SkeletalMeshComponent):
+                                    if "AssetSkeletalMesh" in comp.get_name():
+                                        comp_binding = \
+                                            sequence.find_binding_by_name(
+                                                comp.get_name())
+                                        if comp_binding.is_valid():
+                                            les.rebind_component(
+                                                [comp_binding], comp.get_name())
+                                            bindings.append(comp_binding)
+                                        break
+                            LevelSequenceLib.refresh_current_level_sequence()
+                        else:
+                            # No existing binding to retarget (unexpected) -> create
+                            # one so the new actor is at least bound.
+                            self.log.warning(
+                                'No existing binding named '
+                                f'{actor.get_actor_label()} to retarget; '
+                                'creating a fresh possessable.')
+                            bindings.append(sequence.add_possessable(actor))
+                    else:
+                        binding = None
+                        for p in sequence.get_possessables():
+                            if p.get_name() == actor.get_name():
+                                # NOTE: this does nothing, as the binding name is never that of the actor?
+                                binding = p
                                 break
 
-                    bindings.append(binding)
+                        if not binding:
+                            binding = sequence.add_possessable(actor)
+
+                        # 5.7+: Also add component binding for the SkeletalMeshComponent
+                        # so animations can bind to it
+                        if is5_7_or_later and class_name == 'SkeletalMesh':
+                            for comp in actor.get_components_by_class(unreal.SkeletalMeshComponent):
+                                if "AssetSkeletalMesh" in comp.get_name():
+                                    component_binding = sequence.add_possessable(comp)
+                                    bindings.append(component_binding)
+                                    break
+
+                        bindings.append(binding)
+
+                # Replace path: remove the old actor now that its bindings have
+                # been retargeted onto the new one.
+                if old_actor_to_replace is not None:
+                    old_actor_to_replace.destroy_actor()
 
         if skeletal_mesh:
             if is5_7_or_later:
