@@ -13,6 +13,26 @@ import unreal  # noqa
 
 BOILERPLATE_BP_PATH = "/Game/Utilities/UtilityBlueprints/BP_BZAsset_BoilerPlate"
 
+SOCKET_BONE_PREFIX = "_sock_"   # all sockets are confirmed to start with this
+SOCKET_FLIP_SCALE = (1, -1, -1)
+
+
+def _flip_socket_bones_on_mesh(skeletal_mesh_path):
+    """Mirror socket bones on a freshly (re)imported SKM.
+
+    Automated equivalent of the 'Skeletal Mesh Update' editor utility widget:
+    scales every bone whose name starts with `_sock_` by `(1, -1, -1)`.
+    Imported locally and wrapped so a failure only logs — it must never abort
+    the asset import pipeline.
+    """
+    try:
+        import skeletal_mesh_helpers  # lives in /Content/Python
+        skeletal_mesh_helpers.set_scale_for_bones_matching(
+            skeletal_mesh_path, SOCKET_BONE_PREFIX,
+            scale=SOCKET_FLIP_SCALE, prefix_only=True)
+    except Exception as exc:
+        unreal.log_warning(f"[Socket Flip] Skipped {skeletal_mesh_path}: {exc}")
+
 
 def get_blueprint_name(asset_name, version):
     """Add BP_ prefix and version suffix to asset name."""
@@ -267,6 +287,9 @@ class SkeletalMeshFBXLoader(plugin.Loader):
                 # directly saving the skeletal mesh either, inconsistent
                 unreal.EditorAssetLibrary.save_loaded_asset(newly_imported_SKM)
 
+                # Mirror-flip socket bones (`_sock_` prefix) on the fresh SKM
+                _flip_socket_bones_on_mesh(asset_dir + '/' + asset_name)
+
 
             if created_temp_material:
                 # Delete temporary base material, only if we created it, as we
@@ -475,6 +498,11 @@ class SkeletalMeshFBXLoader(plugin.Loader):
             # I am considering not doing this save since we're not
             # directly saving the skeletal mesh either, inconsistent
             unreal.EditorAssetLibrary.save_loaded_asset(newly_imported_SKM)
+
+            # Mirror-flip socket bones (`_sock_` prefix); reimport resets the
+            # ref pose from the FBX, so this has to run on update too
+            _flip_socket_bones_on_mesh(
+                container["namespace"] + '/' + container["asset_name"])
 
             # UE 5.7+: Update Blueprint wrapper's SkeletalMeshComponent
             if is5_7_or_later:

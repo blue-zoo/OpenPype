@@ -22,6 +22,28 @@ from openpype.hosts.unreal.plugins.load.load_skeletalmesh_fbx import clean_insta
 from openpype.hosts.unreal.plugins.load.load_layout import\
     replacing_AYONs_level_hierarchy
 
+SOCKET_BONE_PREFIX = "_sock_"   # all sockets are confirmed to start with this
+SOCKET_FLIP_SCALE = (1, -1, -1)
+
+
+def _flip_socket_bones_on_anim(anim_sequence_path):
+    """Mirror socket bones on a freshly (re)imported AnimSequence.
+
+    Automated equivalent of the right-click 'set anim scale' scripted asset
+    action: scales every bone track whose name starts with `_sock_` by
+    `(1, -1, -1)`, adding a track for matching bones that aren't animated yet.
+    Imported locally and wrapped so a failure only logs — it must never abort
+    the animation import pipeline.
+    """
+    try:
+        import skeletal_mesh_helpers  # lives in /Content/Python
+        skeletal_mesh_helpers.set_anim_scale_for_bones_matching(
+            anim_sequence_path, SOCKET_BONE_PREFIX,
+            scale=SOCKET_FLIP_SCALE, prefix_only=True,
+            add_track_if_missing=True)
+    except Exception as exc:
+        unreal.log_warning(f"[Socket Flip] Skipped {anim_sequence_path}: {exc}")
+
 
 class AnimationFBXLoader(plugin.Loader):
     """Load Unreal SkeletalMesh from FBX."""
@@ -190,6 +212,9 @@ class AnimationFBXLoader(plugin.Loader):
                     'animation_mode', unreal.AnimationMode.ANIMATION_SINGLE_NODE)
                 skm_component.animation_data.set_editor_property(
                     'anim_to_play', animation)
+
+            # Mirror-flip socket bones (`_sock_` prefix) on the fresh clip
+            _flip_socket_bones_on_anim(animation.get_path_name())
 
         return animation
 
@@ -482,6 +507,12 @@ class AnimationFBXLoader(plugin.Loader):
 
         # do import fbx and replace existing data
         unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+
+        # Mirror-flip socket bones (`_sock_` prefix); reimport replaces the
+        # clip's tracks, so this has to run on update too
+        _flip_socket_bones_on_anim(
+            container["namespace"] + '/' + container["asset_name"])
+
         container_path = f'{container["namespace"]}/{container["objectName"]}'
         # update metadata
         unreal_pipeline.imprint(
