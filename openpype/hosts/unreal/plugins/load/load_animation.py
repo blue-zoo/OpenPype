@@ -24,6 +24,10 @@ from openpype.hosts.unreal.plugins.load.load_layout import\
 
 SOCKET_BONE_PREFIX = "_sock_"   # all sockets are confirmed to start with this
 SOCKET_FLIP_SCALE = (1, -1, -1)
+# ACL curve settings with Curve Precision raised to 0.0001 so micro facial
+# curves from Maya aren't rounded away by the default 0.001
+CURVE_COMPRESSION_SETTINGS_PATH = (
+    "/Game/Utilities/AnimCurveSettings/BZACLAnimCurveCompressionSettings")
 
 
 def _flip_socket_bones_on_anim(anim_sequence_path):
@@ -43,6 +47,27 @@ def _flip_socket_bones_on_anim(anim_sequence_path):
             add_track_if_missing=True)
     except Exception as exc:
         unreal.log_warning(f"[Socket Flip] Skipped {anim_sequence_path}: {exc}")
+
+
+def apply_curve_compression_settings(anim_sequence_path):
+    """Assign the studio curve compression settings to an AnimSequence.
+
+    Sets the clip's `CurveCompressionSettings` to the asset at
+    `CURVE_COMPRESSION_SETTINGS_PATH`. If that asset isn't in the project the
+    clip keeps the engine default. Wrapped so a failure only logs — it must
+    never abort the animation import pipeline.
+    """
+    try:
+        if not EditorAssetLibrary.does_asset_exist(
+                CURVE_COMPRESSION_SETTINGS_PATH):
+            return
+        settings = EditorAssetLibrary.load_asset(
+            CURVE_COMPRESSION_SETTINGS_PATH)
+        animation = EditorAssetLibrary.load_asset(anim_sequence_path)
+        animation.set_editor_property('curve_compression_settings', settings)
+    except Exception as exc:
+        unreal.log_warning(
+            f"[Curve Compression] Skipped {anim_sequence_path}: {exc}")
 
 
 class AnimationFBXLoader(plugin.Loader):
@@ -215,6 +240,9 @@ class AnimationFBXLoader(plugin.Loader):
 
             # Mirror-flip socket bones (`_sock_` prefix) on the fresh clip
             _flip_socket_bones_on_anim(animation.get_path_name())
+
+            # Higher curve precision so micro facial animation survives
+            apply_curve_compression_settings(animation.get_path_name())
 
         return animation
 
@@ -511,6 +539,11 @@ class AnimationFBXLoader(plugin.Loader):
         # Mirror-flip socket bones (`_sock_` prefix); reimport replaces the
         # clip's tracks, so this has to run on update too
         _flip_socket_bones_on_anim(
+            container["namespace"] + '/' + container["asset_name"])
+
+        # Reapply curve precision on update too, so clips loaded before this
+        # fix pick it up when they're next updated
+        apply_curve_compression_settings(
             container["namespace"] + '/' + container["asset_name"])
 
         container_path = f'{container["namespace"]}/{container["objectName"]}'
